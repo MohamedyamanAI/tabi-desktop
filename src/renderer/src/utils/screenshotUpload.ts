@@ -49,8 +49,8 @@ export function initializeScreenshotUpload(): void {
             for (let i = 0; i < byteString.length; i++) {
                 ia[i] = byteString.charCodeAt(i)
             }
-            const blob = new Blob([ab], { type: 'image/jpeg' })
-            const file = new File([blob], 'screenshot.jpg', { type: 'image/jpeg' })
+            const blob = new Blob([ab], { type: 'image/webp' })
+            const file = new File([blob], 'screenshot.webp', { type: 'image/webp' })
 
             // Upload via multipart form data
             const formData = new FormData()

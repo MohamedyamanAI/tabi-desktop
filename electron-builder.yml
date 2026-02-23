@@ -13,6 +13,7 @@ asarUnpack:
     - resources/**
     - node_modules/@miniben90/**
     - node_modules/better-sqlite3/**
+    - node_modules/sharp/**
 extraResources:
     - from: drizzle
       to: drizzle

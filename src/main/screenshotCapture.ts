@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/electron/main'
 import * as fs from 'fs'
 import * as path from 'path'
 import { app } from 'electron'
+import sharp from 'sharp'
 
 let isTimerRunning = false
 let currentTimeEntryId: string | null = null
@@ -205,8 +206,11 @@ async function captureScreenshot(): Promise<void> {
             thumbnail = small.resize({ width: 320, height: 180 })
         }
 
-        // Convert to JPEG buffer
-        const jpegBuffer = thumbnail.toJPEG(screenshotsBlurred ? 60 : 80)
+        // Convert to WebP buffer via sharp for better compression
+        const pngBuffer = thumbnail.toPNG()
+        const webpBuffer = await sharp(pngBuffer)
+            .webp({ quality: screenshotsBlurred ? 60 : 80 })
+            .toBuffer()
 
         // Save to temp file
         const tempDir = path.join(app.getPath('temp'), 'solidtime-screenshots')
@@ -214,9 +218,9 @@ async function captureScreenshot(): Promise<void> {
             fs.mkdirSync(tempDir, { recursive: true })
         }
 
-        const fileName = `screenshot-${Date.now()}.jpg`
+        const fileName = `screenshot-${Date.now()}.webp`
         const filePath = path.join(tempDir, fileName)
-        fs.writeFileSync(filePath, jpegBuffer)
+        fs.writeFileSync(filePath, webpBuffer)
 
         const capturedAt = new Date().toISOString()
 
@@ -239,7 +243,7 @@ async function captureScreenshot(): Promise<void> {
                 filePath,
                 timeEntryId: currentTimeEntryId,
                 capturedAt,
-                base64: jpegBuffer.toString('base64'),
+                base64: webpBuffer.toString('base64'),
             })
         } else {
             console.error('Main window not available for screenshot upload')
@@ -259,19 +263,17 @@ async function captureScreenshot(): Promise<void> {
 
 function showCaptureNotification(): void {
     try {
+        if (!Notification.isSupported()) {
+            console.warn('Notifications are not supported on this platform')
+            return
+        }
+
         const notification = new Notification({
             title: 'Screenshot captured',
             body: 'A screenshot was captured for time tracking.',
-            silent: true,
         })
         notification.show()
-
-        // Auto-dismiss after 3 seconds
-        setTimeout(() => {
-            notification.close()
-        }, 3000)
     } catch (error) {
-        // Notifications may not be available on all platforms
         console.warn('Failed to show screenshot notification:', error)
     }
 }
