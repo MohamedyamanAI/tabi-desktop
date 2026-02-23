@@ -9,6 +9,7 @@ let isTimerRunning = false
 let currentTimeEntryId: string | null = null
 let screenshotsEnabled = false
 let intervalMinutes = 10
+let screenshotsBlurred = true
 
 let windowInterval: NodeJS.Timeout | null = null
 let captureTimeout: NodeJS.Timeout | null = null
@@ -53,7 +54,7 @@ export function registerScreenshotCaptureListeners(): void {
     // Listen for org screenshot settings from renderer
     ipcMain.on(
         'updateOrgScreenshotSettings',
-        (_event, settings: { enabled: boolean; intervalMinutes: number } | null) => {
+        (_event, settings: { enabled: boolean; intervalMinutes: number; blurred: boolean } | null) => {
             if (settings === null) {
                 // No org / logged out — disable capture
                 screenshotsEnabled = false
@@ -61,6 +62,8 @@ export function registerScreenshotCaptureListeners(): void {
                 console.log('Screenshot capture disabled (no org settings)')
                 return
             }
+
+            screenshotsBlurred = settings.blurred !== false
 
             const newEnabled = settings.enabled
             const newInterval =
@@ -92,6 +95,7 @@ export function registerScreenshotCaptureListeners(): void {
             console.log('Org screenshot settings updated:', {
                 enabled: screenshotsEnabled,
                 intervalMinutes,
+                blurred: screenshotsBlurred,
             })
         }
     )
@@ -177,10 +181,14 @@ async function captureScreenshot(): Promise<void> {
             return
         }
 
-        // Use desktopCapturer to get screen source with small thumbnail
+        // Capture at higher resolution when blur is off so screenshots are readable
+        const captureSize = screenshotsBlurred
+            ? { width: 320, height: 180 }
+            : { width: 1920, height: 1080 }
+
         const sources = await desktopCapturer.getSources({
             types: ['screen'],
-            thumbnailSize: { width: 320, height: 180 },
+            thumbnailSize: captureSize,
         })
 
         if (sources.length === 0) {
@@ -192,11 +200,13 @@ async function captureScreenshot(): Promise<void> {
         let thumbnail = source.thumbnail
 
         // Apply pixelation blur: downscale to very small, then scale back up
-        const small = thumbnail.resize({ width: 80, height: 45 })
-        thumbnail = small.resize({ width: 320, height: 180 })
+        if (screenshotsBlurred) {
+            const small = thumbnail.resize({ width: 80, height: 45 })
+            thumbnail = small.resize({ width: 320, height: 180 })
+        }
 
         // Convert to JPEG buffer
-        const jpegBuffer = thumbnail.toJPEG(60)
+        const jpegBuffer = thumbnail.toJPEG(screenshotsBlurred ? 60 : 80)
 
         // Save to temp file
         const tempDir = path.join(app.getPath('temp'), 'solidtime-screenshots')

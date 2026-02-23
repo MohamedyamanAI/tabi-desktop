@@ -19,7 +19,12 @@ const queryClient = useQueryClient()
 const organization =
     inject<
         ComputedRef<
-            { screenshots_enabled: boolean; screenshot_interval_minutes: number } | undefined
+            | {
+                  screenshots_enabled: boolean
+                  screenshot_interval_minutes: number
+                  screenshots_blurred: boolean
+              }
+            | undefined
         >
     >('organization')
 
@@ -293,8 +298,13 @@ watch(activityTrackingEnabled, (enabled) => {
                     </div>
                     <div v-if="organization?.screenshots_enabled" class="ml-4 space-y-3">
                         <div class="text-xs text-muted">
-                            Blurred screenshots are captured at random intervals while a timer is
-                            running and uploaded to your organization's server.
+                            {{
+                                organization?.screenshots_blurred !== false
+                                    ? 'Blurred screenshots are'
+                                    : 'Clear screenshots are'
+                            }}
+                            captured at random intervals while a timer is running and uploaded to
+                            your organization's server.
                         </div>
                         <div class="text-sm">
                             Capture interval:

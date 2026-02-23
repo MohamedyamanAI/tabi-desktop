@@ -41,6 +41,7 @@ import type { Organization } from '@solidtime/api'
 interface OrgWithScreenshots extends Organization {
     screenshots_enabled: boolean
     screenshot_interval_minutes: number
+    screenshots_blurred: boolean
 }
 
 const router = useRouter()
@@ -96,6 +97,7 @@ watch(
             window.electronAPI?.updateOrgScreenshotSettings({
                 enabled: org.screenshots_enabled,
                 intervalMinutes: org.screenshot_interval_minutes,
+                blurred: org.screenshots_blurred,
             })
         } else {
             window.electronAPI?.updateOrgScreenshotSettings(null)
