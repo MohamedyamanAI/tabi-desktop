@@ -75,7 +75,7 @@ function buildMenu(mainWindow: BrowserWindow, timeEntry: TimeEntry | null) {
 
 export function initializeTray(mainWindow: Electron.BrowserWindow) {
     const tray = new Tray(nativeImage.createFromPath(getIconPath(false)))
-    tray.setToolTip('solidtime')
+    tray.setToolTip('Tabi')
     tray.setTitle('')
     tray.setContextMenu(buildMenu(mainWindow, null))
 
@@ -106,7 +106,7 @@ export function registerTrayListeners(tray: Tray, mainWindow: BrowserWindow) {
             const isRunning = isTimerRunning(timeEntry)
             tray.setImage(nativeImage.createFromPath(getIconPath(isRunning)))
             tray.setToolTip(
-                isRunning ? 'solidtime - Timer is running' : 'solidtime - Timer is stopped'
+                isRunning ? 'Tabi - Timer is running' : 'Tabi - Timer is stopped'
             )
             if (timerInterval) {
                 clearInterval(timerInterval)

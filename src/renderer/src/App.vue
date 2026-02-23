@@ -260,10 +260,10 @@ whenever(cmdComma, () => {
                             fill="white" />
                     </svg>
                     <p class="text-center text-text-tertiary max-w-sm">
-                        Welcome to the solidtime desktop client. Sign in with your solidtime account
+                        Welcome to the Tabi desktop client. Sign in with your Tabi account
                         to get started.
                     </p>
-                    <PrimaryButton @click="openLoginWindow()">Log in with solidtime</PrimaryButton>
+                    <PrimaryButton @click="openLoginWindow()">Log in with Tabi</PrimaryButton>
                     <button
                         class="flex items-center text-text-tertiary space-x-1 text-sm font-semibold opacity-50 hover:opacity-100 transition-opacity"
                         @click="showInstanceSettingsModal = true">
