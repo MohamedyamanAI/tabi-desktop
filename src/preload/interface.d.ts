@@ -4,6 +4,8 @@ export interface AppSettings {
     idleDetectionEnabled: boolean
     idleThresholdMinutes: number
     activityTrackingEnabled: boolean
+    screenshotCaptureEnabled: boolean
+    screenshotIntervalMinutes: number
 }
 
 export interface WindowActivity {
@@ -60,6 +62,19 @@ export interface IElectronAPI {
     requestScreenRecordingPermission: () => Promise<boolean>
     deleteAllWindowActivities: () => Promise<{ success: boolean; error?: string }>
     deleteAllActivityPeriods: () => Promise<{ success: boolean; error?: string }>
+    screenshotTimeEntryChanged: (timeEntryId: string | null) => void
+    updateScreenshotCaptureEnabled: (enabled: boolean) => void
+    updateScreenshotInterval: (minutes: number) => void
+    onScreenshotCaptured: (
+        callback: (data: {
+            filePath: string
+            timeEntryId: string
+            capturedAt: string
+            base64: string
+        }) => void
+    ) => () => void
+    sendScreenshotUploadResult: (filePath: string, success: boolean) => void
+    getScreenshotPendingCount: () => Promise<number>
 }
 
 declare global {

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, systemPreferences, desktopCapturer } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, systemPreferences, desktopCapturer, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/linux_icon.png?asset'
@@ -13,6 +13,7 @@ import { runMigrations } from './db/migrate'
 import { registerActivityPeriodListeners } from './activityPeriods'
 import { registerSettingsListeners } from './settings'
 import { initializeActivityTracker, stopActivityTracking } from './activityTracker'
+import { initializeScreenshotCapture, stopScreenshotCapture } from './screenshotCapture'
 import { registerWindowActivitiesHandlers } from './windowActivities'
 import { registerAppIconHandlers } from './appIcons'
 import * as Sentry from '@sentry/electron/main'
@@ -67,6 +68,13 @@ if (process.defaultApp) {
 function createWindow(): void {
     // Create the browser window.
     const mainWindow = initializeMainWindow(icon)
+
+    // Forward renderer console to terminal for debugging
+    mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+        const prefix = ['[RENDERER LOG]', '[RENDERER WARN]', '[RENDERER ERR]'][level] || '[RENDERER]'
+        console.log(`${prefix} ${message} (${sourceId}:${line})`)
+    })
+
     registerMainWindowListeners(mainWindow)
     registerDeeplinkListeners(mainWindow)
     registerAutoUpdateListeners(mainWindow)
@@ -88,10 +96,25 @@ function createWindow(): void {
     }
 }
 
+// Allow self-signed certificates in development (e.g. solidtime.test)
+if (is.dev) {
+    app.on('certificate-error', (event, _webContents, _url, _error, _certificate, callback) => {
+        event.preventDefault()
+        callback(true)
+    })
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
+    // Bypass certificate verification for self-signed certs in development
+    if (is.dev) {
+        session.defaultSession.setCertificateVerifyProc((_request, callback) => {
+            callback(0)
+        })
+    }
+
     registerVueDevTools()
 
     // Set app user model id for windows
@@ -169,9 +192,22 @@ app.whenReady().then(async () => {
         return true // Non-macOS platforms don't need this permission
     })
 
+    // Trigger macOS screen recording permission prompt on startup
+    if (process.platform === 'darwin') {
+        try {
+            await desktopCapturer.getSources({
+                types: ['screen'],
+                thumbnailSize: { width: 1, height: 1 },
+            })
+        } catch (error) {
+            console.error('Screen recording permission request failed:', error)
+        }
+    }
+
     createWindow()
     await initializeIdleMonitor()
     await initializeActivityTracker()
+    await initializeScreenshotCapture()
 
     app.on('activate', function () {
         // On macOS it's common to re-create a window in the app when the
@@ -202,7 +238,11 @@ app.on('before-quit', async (event) => {
         })
 
         // Race the save operations against the timeout
-        const savePromise = Promise.all([stopActivityTracking(), stopIdleMonitoring()])
+        const savePromise = Promise.all([
+            stopActivityTracking(),
+            stopIdleMonitoring(),
+            Promise.resolve(stopScreenshotCapture()),
+        ])
 
         await Promise.race([savePromise, timeoutPromise])
 

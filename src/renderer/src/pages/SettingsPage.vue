@@ -7,6 +7,8 @@ import {
     idleDetectionEnabled,
     idleThresholdMinutes,
     activityTrackingEnabled,
+    screenshotCaptureEnabled,
+    screenshotIntervalMinutes,
 } from '../utils/settings.ts'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { getMe } from '../utils/me'
@@ -34,6 +36,7 @@ const showDeleteIconCacheModal = ref(false)
 const isDeletingWindowActivities = ref(false)
 const isDeletingActivityPeriods = ref(false)
 const isDeletingIconCache = ref(false)
+const pendingScreenshots = ref(0)
 const myData = computed(() => data.value?.data)
 
 function onLogoutClick() {
@@ -142,8 +145,15 @@ async function confirmDeleteIconCache() {
 
 onMounted(async () => {
     // Check permission status on mount
-    if (activityTrackingEnabled.value) {
+    if (activityTrackingEnabled.value || screenshotCaptureEnabled.value) {
         hasPermission.value = await window.electronAPI.checkScreenRecordingPermission()
+    }
+
+    // Fetch pending screenshot count
+    try {
+        pendingScreenshots.value = await window.electronAPI.getScreenshotPendingCount()
+    } catch {
+        // Ignore errors
     }
 
     window.electronAPI.onUpdateNotAvailable(() => {
@@ -253,6 +263,40 @@ watch(activityTrackingEnabled, (enabled) => {
                                 @click="reopenPermissionModal">
                                 Grant Permission
                             </SecondaryButton>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="bg-card-background rounded-lg border border-card-background-separator p-6 mb-6">
+                <div class="mb-4 text-lg font-medium">Screenshots</div>
+                <div class="space-y-4">
+                    <label class="flex items-center">
+                        <Checkbox
+                            v-model:checked="screenshotCaptureEnabled"
+                            name="screenshotCapture" />
+                        <span class="ms-2 text-sm">Enable Screenshot Capture</span>
+                    </label>
+                    <div v-if="screenshotCaptureEnabled" class="ml-6 space-y-3">
+                        <div class="text-xs text-muted">
+                            Captures blurred screenshots at random intervals while a timer is
+                            running. Screenshots are uploaded to your organization's server.
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <label for="screenshotInterval" class="text-sm"
+                                >Capture interval (minutes):</label
+                            >
+                            <input
+                                id="screenshotInterval"
+                                v-model.number="screenshotIntervalMinutes"
+                                type="number"
+                                min="1"
+                                max="60"
+                                class="w-20 px-2 py-1 text-sm bg-card-background border border-card-background-separator rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                        <div v-if="pendingScreenshots > 0" class="text-xs text-yellow-600">
+                            {{ pendingScreenshots }} screenshot(s) pending upload
                         </div>
                     </div>
                 </div>

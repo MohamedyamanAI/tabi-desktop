@@ -59,6 +59,20 @@ if (process.contextIsolated || true) {
                 ipcRenderer.invoke('requestScreenRecordingPermission'),
             deleteAllWindowActivities: () => ipcRenderer.invoke('deleteAllWindowActivities'),
             deleteAllActivityPeriods: () => ipcRenderer.invoke('deleteAllActivityPeriods'),
+            screenshotTimeEntryChanged: (timeEntryId: string | null) =>
+                ipcRenderer.send('screenshotTimeEntryChanged', timeEntryId),
+            updateScreenshotCaptureEnabled: (enabled: boolean) =>
+                ipcRenderer.send('updateScreenshotCaptureEnabled', enabled),
+            updateScreenshotInterval: (minutes: number) =>
+                ipcRenderer.send('updateScreenshotInterval', minutes),
+            onScreenshotCaptured: (callback) => {
+                const listener = (_event, value) => callback(value)
+                ipcRenderer.on('screenshotCaptured', listener)
+                return () => ipcRenderer.removeListener('screenshotCaptured', listener)
+            },
+            sendScreenshotUploadResult: (filePath: string, success: boolean) =>
+                ipcRenderer.send('screenshotUploadResult', { filePath, success }),
+            getScreenshotPendingCount: () => ipcRenderer.invoke('getScreenshotPendingCount'),
         })
     } catch (error) {
         console.error(error)

@@ -12,7 +12,7 @@ declare global {
 import AutoUpdaterOverlay from './components/AutoUpdaterOverlay.vue'
 import { useQueryClient, useQuery } from '@tanstack/vue-query'
 
-import { onMounted, ref, watchEffect, watch, computed } from 'vue'
+import { onMounted, ref, watchEffect, watch, computed, provide } from 'vue'
 import { initializeAuth, isLoggedIn, openLoginWindow } from './utils/oauth.ts'
 
 import InstanceSettingsModal from './components/InstanceSettingsModal.vue'
@@ -28,10 +28,13 @@ import { useRouter } from 'vue-router'
 import { listenForBackendEvent } from './utils/events.ts'
 import { getMe } from './utils/me'
 import { initializeSettings } from './utils/settings.ts'
+import { initializeScreenshotUpload } from './utils/screenshotUpload.ts'
 import { useLiveTimer } from './utils/liveTimer'
 import { dayjs } from './utils/dayjs'
 import { useStorage } from '@vueuse/core'
 import { emptyTimeEntry } from './utils/timeEntries'
+import { useMyMemberships } from './utils/myMemberships'
+import { apiClient } from './utils/api'
 
 const router = useRouter()
 
@@ -62,6 +65,19 @@ watchEffect(() => {
     }
 })
 
+// Fetch full organization data and provide it for child components
+const { currentOrganizationId } = useMyMemberships()
+const { data: organizationResponse } = useQuery({
+    queryKey: ['organization', currentOrganizationId],
+    queryFn: () =>
+        apiClient.value.getOrganization({
+            params: { organization: currentOrganizationId.value! },
+        }),
+    enabled: computed(() => !!currentOrganizationId.value),
+})
+const organization = computed(() => organizationResponse.value?.data)
+provide('organization', organization)
+
 // Fetch user data for timezone and week start settings
 const { data: meResponse } = useQuery({
     queryKey: ['me'],
@@ -75,12 +91,27 @@ watch(meResponse, () => {
     }
 })
 
-// Watch timer state and notify main process for idle detection
+// Watch timer state and notify main process for idle detection and screenshot capture
 watch(isActive, (active) => {
     if (window.electronAPI?.timerStateChanged) {
         window.electronAPI.timerStateChanged(active)
     }
+    if (active && currentTimeEntry.value?.id) {
+        window.electronAPI?.screenshotTimeEntryChanged(currentTimeEntry.value.id)
+    } else if (!active) {
+        window.electronAPI?.screenshotTimeEntryChanged(null)
+    }
 })
+
+// Watch for time entry ID changes (e.g. when server assigns the real ID)
+watch(
+    () => currentTimeEntry.value?.id,
+    (id) => {
+        if (isActive.value && id) {
+            window.electronAPI?.screenshotTimeEntryChanged(id)
+        }
+    }
+)
 
 onMounted(async () => {
     window.getTimezoneSetting = () => 'Europe/Vienna'
@@ -91,6 +122,9 @@ onMounted(async () => {
 
     // Initialize settings from database
     await initializeSettings()
+
+    // Initialize screenshot upload handler
+    initializeScreenshotUpload()
 
     // Listen for timer events from mini window
     await listenForBackendEvent('startTimer', () => {
