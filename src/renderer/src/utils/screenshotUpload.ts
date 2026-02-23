@@ -17,7 +17,9 @@ export function initializeScreenshotUpload(): void {
     cleanupListener = window.electronAPI.onScreenshotCaptured(async (data) => {
         const { filePath, timeEntryId, capturedAt, base64 } = data
 
-        console.log(`Screenshot received in renderer: timeEntryId=${timeEntryId}, capturedAt=${capturedAt}, base64Length=${base64?.length}`)
+        console.log(
+            `Screenshot received in renderer: timeEntryId=${timeEntryId}, capturedAt=${capturedAt}, base64Length=${base64?.length}`
+        )
 
         try {
             // Get current time entry and organization from localStorage

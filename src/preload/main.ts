@@ -61,10 +61,9 @@ if (process.contextIsolated || true) {
             deleteAllActivityPeriods: () => ipcRenderer.invoke('deleteAllActivityPeriods'),
             screenshotTimeEntryChanged: (timeEntryId: string | null) =>
                 ipcRenderer.send('screenshotTimeEntryChanged', timeEntryId),
-            updateScreenshotCaptureEnabled: (enabled: boolean) =>
-                ipcRenderer.send('updateScreenshotCaptureEnabled', enabled),
-            updateScreenshotInterval: (minutes: number) =>
-                ipcRenderer.send('updateScreenshotInterval', minutes),
+            updateOrgScreenshotSettings: (
+                settings: { enabled: boolean; intervalMinutes: number } | null
+            ) => ipcRenderer.send('updateOrgScreenshotSettings', settings),
             onScreenshotCaptured: (callback) => {
                 const listener = (_event, value) => callback(value)
                 ipcRenderer.on('screenshotCaptured', listener)

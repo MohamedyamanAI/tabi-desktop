@@ -1,4 +1,12 @@
-import { app, BrowserWindow, ipcMain, dialog, systemPreferences, desktopCapturer, session } from 'electron'
+import {
+    app,
+    BrowserWindow,
+    ipcMain,
+    dialog,
+    systemPreferences,
+    desktopCapturer,
+    session,
+} from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/linux_icon.png?asset'
@@ -71,7 +79,8 @@ function createWindow(): void {
 
     // Forward renderer console to terminal for debugging
     mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-        const prefix = ['[RENDERER LOG]', '[RENDERER WARN]', '[RENDERER ERR]'][level] || '[RENDERER]'
+        const prefix =
+            ['[RENDERER LOG]', '[RENDERER WARN]', '[RENDERER ERR]'][level] || '[RENDERER]'
         console.log(`${prefix} ${message} (${sourceId}:${line})`)
     })
 

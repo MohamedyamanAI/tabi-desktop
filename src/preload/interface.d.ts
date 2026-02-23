@@ -4,8 +4,6 @@ export interface AppSettings {
     idleDetectionEnabled: boolean
     idleThresholdMinutes: number
     activityTrackingEnabled: boolean
-    screenshotCaptureEnabled: boolean
-    screenshotIntervalMinutes: number
 }
 
 export interface WindowActivity {
@@ -63,8 +61,9 @@ export interface IElectronAPI {
     deleteAllWindowActivities: () => Promise<{ success: boolean; error?: string }>
     deleteAllActivityPeriods: () => Promise<{ success: boolean; error?: string }>
     screenshotTimeEntryChanged: (timeEntryId: string | null) => void
-    updateScreenshotCaptureEnabled: (enabled: boolean) => void
-    updateScreenshotInterval: (minutes: number) => void
+    updateOrgScreenshotSettings: (
+        settings: { enabled: boolean; intervalMinutes: number } | null
+    ) => void
     onScreenshotCaptured: (
         callback: (data: {
             filePath: string

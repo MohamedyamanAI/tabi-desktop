@@ -1,6 +1,5 @@
 import { desktopCapturer, ipcMain, Notification } from 'electron'
 import { getMainWindow } from './mainWindow'
-import { getAppSettings } from './settings'
 import * as Sentry from '@sentry/electron/main'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -26,14 +25,11 @@ let pendingUploads: PendingScreenshot[] = []
 let retryTimeout: NodeJS.Timeout | null = null
 
 export async function initializeScreenshotCapture(): Promise<void> {
-    const appSettings = await getAppSettings()
-    screenshotsEnabled = appSettings.screenshotCaptureEnabled ?? false
-    intervalMinutes = appSettings.screenshotIntervalMinutes ?? 10
+    // Start with capture disabled; will be enabled when org settings arrive from renderer
+    screenshotsEnabled = false
+    intervalMinutes = 10
 
-    console.log('Screenshot capture initialized with settings:', {
-        screenshotsEnabled,
-        intervalMinutes,
-    })
+    console.log('Screenshot capture initialized (waiting for org settings)')
 
     registerScreenshotCaptureListeners()
 }
@@ -54,26 +50,51 @@ export function registerScreenshotCaptureListeners(): void {
         currentTimeEntryId = timeEntryId
     })
 
-    // Listen for screenshot settings updates
-    ipcMain.on('updateScreenshotCaptureEnabled', (_event, enabled: boolean) => {
-        screenshotsEnabled = enabled
-        if (enabled && isTimerRunning) {
-            maybeStartCapture()
-        } else if (!enabled) {
-            stopCapture()
-        }
-    })
+    // Listen for org screenshot settings from renderer
+    ipcMain.on(
+        'updateOrgScreenshotSettings',
+        (_event, settings: { enabled: boolean; intervalMinutes: number } | null) => {
+            if (settings === null) {
+                // No org / logged out — disable capture
+                screenshotsEnabled = false
+                stopCapture()
+                console.log('Screenshot capture disabled (no org settings)')
+                return
+            }
 
-    ipcMain.on('updateScreenshotInterval', (_event, minutes: number) => {
-        if (typeof minutes === 'number' && minutes >= 1 && minutes <= 60) {
-            intervalMinutes = minutes
-            // Restart capture with new interval if running
-            if (isTimerRunning && screenshotsEnabled) {
+            const newEnabled = settings.enabled
+            const newInterval =
+                typeof settings.intervalMinutes === 'number' &&
+                settings.intervalMinutes >= 1 &&
+                settings.intervalMinutes <= 60
+                    ? settings.intervalMinutes
+                    : 10
+
+            const intervalChanged = intervalMinutes !== newInterval
+            intervalMinutes = newInterval
+
+            if (newEnabled && !screenshotsEnabled) {
+                // Turning on
+                screenshotsEnabled = true
+                if (isTimerRunning) {
+                    maybeStartCapture()
+                }
+            } else if (!newEnabled && screenshotsEnabled) {
+                // Turning off
+                screenshotsEnabled = false
+                stopCapture()
+            } else if (newEnabled && intervalChanged && isTimerRunning) {
+                // Interval changed while running — restart capture
                 stopCapture()
                 maybeStartCapture()
             }
+
+            console.log('Org screenshot settings updated:', {
+                enabled: screenshotsEnabled,
+                intervalMinutes,
+            })
         }
-    })
+    )
 
     // Handle upload result from renderer
     ipcMain.on('screenshotUploadResult', (_event, data: { filePath: string; success: boolean }) => {
@@ -201,7 +222,9 @@ async function captureScreenshot(): Promise<void> {
         // Send to renderer for upload
         const mainWindow = getMainWindow()
         if (mainWindow) {
-            console.log(`Sending screenshot to renderer: timeEntryId=${currentTimeEntryId}, capturedAt=${capturedAt}`)
+            console.log(
+                `Sending screenshot to renderer: timeEntryId=${currentTimeEntryId}, capturedAt=${capturedAt}`
+            )
             mainWindow.webContents.send('screenshotCaptured', {
                 filePath,
                 timeEntryId: currentTimeEntryId,

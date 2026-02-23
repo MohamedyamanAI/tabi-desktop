@@ -6,8 +6,6 @@ export interface AppSettings {
     idleDetectionEnabled: boolean
     idleThresholdMinutes: number
     activityTrackingEnabled: boolean
-    screenshotCaptureEnabled: boolean
-    screenshotIntervalMinutes: number
 }
 
 // Reactive settings that sync with the database
@@ -16,8 +14,6 @@ export const isTrayTimerActivated = ref(true)
 export const idleDetectionEnabled = ref(true)
 export const idleThresholdMinutes = ref(5)
 export const activityTrackingEnabled = ref(false) // Off by default
-export const screenshotCaptureEnabled = ref(false) // Off by default
-export const screenshotIntervalMinutes = ref(10)
 
 let isInitialized = false
 
@@ -35,8 +31,6 @@ export async function initializeSettings() {
             idleDetectionEnabled.value = result.data.idleDetectionEnabled
             idleThresholdMinutes.value = result.data.idleThresholdMinutes
             activityTrackingEnabled.value = result.data.activityTrackingEnabled
-            screenshotCaptureEnabled.value = result.data.screenshotCaptureEnabled
-            screenshotIntervalMinutes.value = result.data.screenshotIntervalMinutes
         }
 
         isInitialized = true
@@ -66,16 +60,6 @@ export async function initializeSettings() {
             updateSetting({ activityTrackingEnabled: value })
             // Also notify main process for activity tracking
             window.electronAPI.updateActivityTrackingEnabled(value)
-        })
-
-        watch(screenshotCaptureEnabled, (value) => {
-            updateSetting({ screenshotCaptureEnabled: value })
-            window.electronAPI.updateScreenshotCaptureEnabled(value)
-        })
-
-        watch(screenshotIntervalMinutes, (value) => {
-            updateSetting({ screenshotIntervalMinutes: value })
-            window.electronAPI.updateScreenshotInterval(value)
         })
     } catch (error) {
         console.error('Failed to initialize settings:', error)

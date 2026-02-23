@@ -35,6 +35,13 @@ import { useStorage } from '@vueuse/core'
 import { emptyTimeEntry } from './utils/timeEntries'
 import { useMyMemberships } from './utils/myMemberships'
 import { apiClient } from './utils/api'
+import type { Organization } from '@solidtime/api'
+
+// Extend with Tabi-specific org fields (present in API but not yet in published @solidtime/api types)
+interface OrgWithScreenshots extends Organization {
+    screenshots_enabled: boolean
+    screenshot_interval_minutes: number
+}
 
 const router = useRouter()
 
@@ -74,9 +81,28 @@ const { data: organizationResponse } = useQuery({
             params: { organization: currentOrganizationId.value! },
         }),
     enabled: computed(() => !!currentOrganizationId.value),
+    refetchInterval: 5 * 60 * 1000, // Re-fetch every 5 min so admin changes propagate
 })
-const organization = computed(() => organizationResponse.value?.data)
+const organization = computed<OrgWithScreenshots | undefined>(
+    () => organizationResponse.value?.data as OrgWithScreenshots | undefined
+)
 provide('organization', organization)
+
+// Send org screenshot settings to main process whenever they change
+watch(
+    organization,
+    (org) => {
+        if (org) {
+            window.electronAPI?.updateOrgScreenshotSettings({
+                enabled: org.screenshots_enabled,
+                intervalMinutes: org.screenshot_interval_minutes,
+            })
+        } else {
+            window.electronAPI?.updateOrgScreenshotSettings(null)
+        }
+    },
+    { immediate: true }
+)
 
 // Fetch user data for timezone and week start settings
 const { data: meResponse } = useQuery({

@@ -7,16 +7,21 @@ import {
     idleDetectionEnabled,
     idleThresholdMinutes,
     activityTrackingEnabled,
-    screenshotCaptureEnabled,
-    screenshotIntervalMinutes,
 } from '../utils/settings.ts'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { getMe } from '../utils/me'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, inject, onMounted, ref, watch } from 'vue'
+import type { ComputedRef } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const queryClient = useQueryClient()
+const organization =
+    inject<
+        ComputedRef<
+            { screenshots_enabled: boolean; screenshot_interval_minutes: number } | undefined
+        >
+    >('organization')
 
 const { data } = useQuery({
     queryKey: ['me'],
@@ -145,7 +150,7 @@ async function confirmDeleteIconCache() {
 
 onMounted(async () => {
     // Check permission status on mount
-    if (activityTrackingEnabled.value || screenshotCaptureEnabled.value) {
+    if (activityTrackingEnabled.value || organization?.value?.screenshots_enabled) {
         hasPermission.value = await window.electronAPI.checkScreenRecordingPermission()
     }
 
@@ -272,32 +277,35 @@ watch(activityTrackingEnabled, (enabled) => {
                 class="bg-card-background rounded-lg border border-card-background-separator p-6 mb-6">
                 <div class="mb-4 text-lg font-medium">Screenshots</div>
                 <div class="space-y-4">
-                    <label class="flex items-center">
-                        <Checkbox
-                            v-model:checked="screenshotCaptureEnabled"
-                            name="screenshotCapture" />
-                        <span class="ms-2 text-sm">Enable Screenshot Capture</span>
-                    </label>
-                    <div v-if="screenshotCaptureEnabled" class="ml-6 space-y-3">
+                    <div class="flex items-center space-x-2">
+                        <div
+                            class="w-2 h-2 rounded-full"
+                            :class="
+                                organization?.screenshots_enabled ? 'bg-green-500' : 'bg-gray-400'
+                            "></div>
+                        <span class="text-sm">
+                            Screenshot capture is
+                            <strong>{{
+                                organization?.screenshots_enabled ? 'enabled' : 'disabled'
+                            }}</strong>
+                            by your organization.
+                        </span>
+                    </div>
+                    <div v-if="organization?.screenshots_enabled" class="ml-4 space-y-3">
                         <div class="text-xs text-muted">
-                            Captures blurred screenshots at random intervals while a timer is
-                            running. Screenshots are uploaded to your organization's server.
+                            Blurred screenshots are captured at random intervals while a timer is
+                            running and uploaded to your organization's server.
                         </div>
-                        <div class="flex items-center space-x-2">
-                            <label for="screenshotInterval" class="text-sm"
-                                >Capture interval (minutes):</label
-                            >
-                            <input
-                                id="screenshotInterval"
-                                v-model.number="screenshotIntervalMinutes"
-                                type="number"
-                                min="1"
-                                max="60"
-                                class="w-20 px-2 py-1 text-sm bg-card-background border border-card-background-separator rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        <div class="text-sm">
+                            Capture interval:
+                            <strong>{{ organization.screenshot_interval_minutes }} minutes</strong>
                         </div>
                         <div v-if="pendingScreenshots > 0" class="text-xs text-yellow-600">
                             {{ pendingScreenshots }} screenshot(s) pending upload
                         </div>
+                    </div>
+                    <div v-if="!organization" class="text-xs text-muted">
+                        Loading organization settings...
                     </div>
                 </div>
             </div>

@@ -11,8 +11,6 @@ export interface AppSettings {
     idleDetectionEnabled: boolean
     idleThresholdMinutes: number
     activityTrackingEnabled: boolean
-    screenshotCaptureEnabled: boolean
-    screenshotIntervalMinutes: number
 }
 
 // Default settings
@@ -22,8 +20,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     idleDetectionEnabled: true,
     idleThresholdMinutes: 5,
     activityTrackingEnabled: false, // Off by default for privacy
-    screenshotCaptureEnabled: false, // Off by default for privacy
-    screenshotIntervalMinutes: 10,
 }
 
 // Setting keys used in the database
@@ -33,8 +29,6 @@ const SETTING_KEYS = {
     IDLE_DETECTION_ENABLED: 'idle_detection_enabled',
     IDLE_THRESHOLD_MINUTES: 'idle_threshold_minutes',
     ACTIVITY_TRACKING_ENABLED: 'activity_tracking_enabled',
-    SCREENSHOT_CAPTURE_ENABLED: 'screenshot_capture_enabled',
-    SCREENSHOT_INTERVAL_MINUTES: 'screenshot_interval_minutes',
 } as const
 
 /**
@@ -100,16 +94,12 @@ export async function getAppSettings(): Promise<AppSettings> {
             idleDetectionEnabled,
             idleThresholdMinutes,
             activityTrackingEnabled,
-            screenshotCaptureEnabled,
-            screenshotIntervalMinutes,
         ] = await Promise.all([
             getSetting(SETTING_KEYS.WIDGET_ACTIVATED),
             getSetting(SETTING_KEYS.TRAY_TIMER_ACTIVATED),
             getSetting(SETTING_KEYS.IDLE_DETECTION_ENABLED),
             getSetting(SETTING_KEYS.IDLE_THRESHOLD_MINUTES),
             getSetting(SETTING_KEYS.ACTIVITY_TRACKING_ENABLED),
-            getSetting(SETTING_KEYS.SCREENSHOT_CAPTURE_ENABLED),
-            getSetting(SETTING_KEYS.SCREENSHOT_INTERVAL_MINUTES),
         ])
 
         return {
@@ -133,14 +123,6 @@ export async function getAppSettings(): Promise<AppSettings> {
                 activityTrackingEnabled !== null
                     ? activityTrackingEnabled === 'true'
                     : DEFAULT_SETTINGS.activityTrackingEnabled,
-            screenshotCaptureEnabled:
-                screenshotCaptureEnabled !== null
-                    ? screenshotCaptureEnabled === 'true'
-                    : DEFAULT_SETTINGS.screenshotCaptureEnabled,
-            screenshotIntervalMinutes:
-                screenshotIntervalMinutes !== null
-                    ? parseInt(screenshotIntervalMinutes, 10)
-                    : DEFAULT_SETTINGS.screenshotIntervalMinutes,
         }
     } catch (error) {
         console.error('Failed to get app settings, using defaults:', error)
@@ -198,24 +180,6 @@ export async function updateAppSettings(
                 setSetting(
                     SETTING_KEYS.ACTIVITY_TRACKING_ENABLED,
                     String(partialSettings.activityTrackingEnabled)
-                )
-            )
-        }
-
-        if (partialSettings.screenshotCaptureEnabled !== undefined) {
-            promises.push(
-                setSetting(
-                    SETTING_KEYS.SCREENSHOT_CAPTURE_ENABLED,
-                    String(partialSettings.screenshotCaptureEnabled)
-                )
-            )
-        }
-
-        if (partialSettings.screenshotIntervalMinutes !== undefined) {
-            promises.push(
-                setSetting(
-                    SETTING_KEYS.SCREENSHOT_INTERVAL_MINUTES,
-                    String(partialSettings.screenshotIntervalMinutes)
                 )
             )
         }
