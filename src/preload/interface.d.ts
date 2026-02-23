@@ -1,8 +1,6 @@
 export interface AppSettings {
     widgetActivated: boolean
     trayTimerActivated: boolean
-    idleDetectionEnabled: boolean
-    idleThresholdMinutes: number
     activityTrackingEnabled: boolean
 }
 
@@ -40,8 +38,9 @@ export interface IElectronAPI {
     onStopTimer: (callback: () => void) => void
     updateTrayState: (timeEntry: string, showTimer: boolean) => void
     updateAutoUpdater: () => void
-    updateIdleThreshold: (thresholdMinutes: number) => void
-    updateIdleDetectionEnabled: (enabled: boolean) => void
+    updateOrgIdleSettings: (
+        settings: { enabled: boolean; thresholdMinutes: number } | null
+    ) => void
     updateActivityTrackingEnabled: (enabled: boolean) => void
     timerStateChanged: (running: boolean) => void
     onIdleDialogResponse: (

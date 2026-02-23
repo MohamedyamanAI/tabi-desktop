@@ -38,10 +38,12 @@ import { apiClient } from './utils/api'
 import type { Organization } from '@solidtime/api'
 
 // Extend with Tabi-specific org fields (present in API but not yet in published @solidtime/api types)
-interface OrgWithScreenshots extends Organization {
+interface OrgWithExtensions extends Organization {
     screenshots_enabled: boolean
     screenshot_interval_minutes: number
     screenshots_blurred: boolean
+    idle_detection_enabled: boolean
+    idle_threshold_minutes: number
 }
 
 const router = useRouter()
@@ -84,8 +86,8 @@ const { data: organizationResponse } = useQuery({
     enabled: computed(() => !!currentOrganizationId.value),
     refetchInterval: 5 * 60 * 1000, // Re-fetch every 5 min so admin changes propagate
 })
-const organization = computed<OrgWithScreenshots | undefined>(
-    () => organizationResponse.value?.data as OrgWithScreenshots | undefined
+const organization = computed<OrgWithExtensions | undefined>(
+    () => organizationResponse.value?.data as OrgWithExtensions | undefined
 )
 provide('organization', organization)
 
@@ -101,6 +103,22 @@ watch(
             })
         } else {
             window.electronAPI?.updateOrgScreenshotSettings(null)
+        }
+    },
+    { immediate: true }
+)
+
+// Send org idle detection settings to main process whenever they change
+watch(
+    organization,
+    (org) => {
+        if (org) {
+            window.electronAPI?.updateOrgIdleSettings({
+                enabled: org.idle_detection_enabled,
+                thresholdMinutes: org.idle_threshold_minutes,
+            })
+        } else {
+            window.electronAPI?.updateOrgIdleSettings(null)
         }
     },
     { immediate: true }

@@ -31,10 +31,9 @@ if (process.contextIsolated || true) {
             updateTrayState: (timeEntry: string, showTimer: boolean) =>
                 ipcRenderer.send('updateTrayState', timeEntry, showTimer),
             updateAutoUpdater: () => ipcRenderer.send('updateAutoUpdater'),
-            updateIdleThreshold: (thresholdMinutes: number) =>
-                ipcRenderer.send('updateIdleThreshold', thresholdMinutes),
-            updateIdleDetectionEnabled: (enabled: boolean) =>
-                ipcRenderer.send('updateIdleDetectionEnabled', enabled),
+            updateOrgIdleSettings: (
+                settings: { enabled: boolean; thresholdMinutes: number } | null
+            ) => ipcRenderer.send('updateOrgIdleSettings', settings),
             updateActivityTrackingEnabled: (enabled: boolean) =>
                 ipcRenderer.send('updateActivityTrackingEnabled', enabled),
             timerStateChanged: (running: boolean) => ipcRenderer.send('timerStateChanged', running),

@@ -4,8 +4,6 @@ import { logout } from '../utils/oauth.ts'
 import {
     isWidgetActivated,
     isTrayTimerActivated,
-    idleDetectionEnabled,
-    idleThresholdMinutes,
     activityTrackingEnabled,
 } from '../utils/settings.ts'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -23,6 +21,8 @@ const organization =
                   screenshots_enabled: boolean
                   screenshot_interval_minutes: number
                   screenshots_blurred: boolean
+                  idle_detection_enabled: boolean
+                  idle_threshold_minutes: number
               }
             | undefined
         >
@@ -184,15 +184,6 @@ onMounted(async () => {
     })
 })
 
-// Watch for idle detection settings changes and notify main process
-watch(idleDetectionEnabled, (enabled) => {
-    window.electronAPI.updateIdleDetectionEnabled(enabled)
-})
-
-watch(idleThresholdMinutes, (minutes) => {
-    window.electronAPI.updateIdleThreshold(minutes)
-})
-
 // Watch for activity tracking setting changes and notify main process
 watch(activityTrackingEnabled, (enabled) => {
     handleActivityTrackingToggle(enabled)
@@ -238,20 +229,6 @@ watch(activityTrackingEnabled, (enabled) => {
                         <Checkbox v-model:checked="isTrayTimerActivated" name="tray_timer" />
                         <span class="ms-2 text-sm">Show Tray / Menu Bar Timer</span>
                     </label>
-                    <label class="flex items-center">
-                        <Checkbox v-model:checked="idleDetectionEnabled" name="idleDetection" />
-                        <span class="ms-2 text-sm">Enable Idle Detection</span>
-                    </label>
-                    <div v-if="idleDetectionEnabled" class="ml-6 flex items-center space-x-2">
-                        <label for="idleThreshold" class="text-sm">Idle threshold (minutes):</label>
-                        <input
-                            id="idleThreshold"
-                            v-model.number="idleThresholdMinutes"
-                            type="number"
-                            min="1"
-                            max="60"
-                            class="w-20 px-2 py-1 text-sm bg-card-background border border-card-background-separator rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
                     <label class="flex items-center">
                         <Checkbox
                             v-model:checked="activityTrackingEnabled"
@@ -312,6 +289,42 @@ watch(activityTrackingEnabled, (enabled) => {
                         </div>
                         <div v-if="pendingScreenshots > 0" class="text-xs text-yellow-600">
                             {{ pendingScreenshots }} screenshot(s) pending upload
+                        </div>
+                    </div>
+                    <div v-if="!organization" class="text-xs text-muted">
+                        Loading organization settings...
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="bg-card-background rounded-lg border border-card-background-separator p-6 mb-6">
+                <div class="mb-4 text-lg font-medium">Idle Detection</div>
+                <div class="space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <div
+                            class="w-2 h-2 rounded-full"
+                            :class="
+                                organization?.idle_detection_enabled
+                                    ? 'bg-green-500'
+                                    : 'bg-gray-400'
+                            "></div>
+                        <span class="text-sm">
+                            Idle detection is
+                            <strong>{{
+                                organization?.idle_detection_enabled ? 'enabled' : 'disabled'
+                            }}</strong>
+                            by your organization.
+                        </span>
+                    </div>
+                    <div v-if="organization?.idle_detection_enabled" class="ml-4 space-y-3">
+                        <div class="text-xs text-muted">
+                            You will be prompted when returning from inactivity while a timer is
+                            running.
+                        </div>
+                        <div class="text-sm">
+                            Idle threshold:
+                            <strong>{{ organization.idle_threshold_minutes }} minutes</strong>
                         </div>
                     </div>
                     <div v-if="!organization" class="text-xs text-muted">

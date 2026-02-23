@@ -3,16 +3,12 @@ import { ref, watch } from 'vue'
 export interface AppSettings {
     widgetActivated: boolean
     trayTimerActivated: boolean
-    idleDetectionEnabled: boolean
-    idleThresholdMinutes: number
     activityTrackingEnabled: boolean
 }
 
 // Reactive settings that sync with the database
 export const isWidgetActivated = ref(true)
 export const isTrayTimerActivated = ref(true)
-export const idleDetectionEnabled = ref(true)
-export const idleThresholdMinutes = ref(5)
 export const activityTrackingEnabled = ref(false) // Off by default
 
 let isInitialized = false
@@ -28,8 +24,6 @@ export async function initializeSettings() {
         if (result.success && result.data) {
             isWidgetActivated.value = result.data.widgetActivated
             isTrayTimerActivated.value = result.data.trayTimerActivated
-            idleDetectionEnabled.value = result.data.idleDetectionEnabled
-            idleThresholdMinutes.value = result.data.idleThresholdMinutes
             activityTrackingEnabled.value = result.data.activityTrackingEnabled
         }
 
@@ -42,18 +36,6 @@ export async function initializeSettings() {
 
         watch(isTrayTimerActivated, (value) => {
             updateSetting({ trayTimerActivated: value })
-        })
-
-        watch(idleDetectionEnabled, (value) => {
-            updateSetting({ idleDetectionEnabled: value })
-            // Also notify main process for idle detection
-            window.electronAPI.updateIdleDetectionEnabled(value)
-        })
-
-        watch(idleThresholdMinutes, (value) => {
-            updateSetting({ idleThresholdMinutes: value })
-            // Also notify main process for idle detection
-            window.electronAPI.updateIdleThreshold(value)
         })
 
         watch(activityTrackingEnabled, (value) => {

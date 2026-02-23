@@ -6,7 +6,6 @@ import duration from 'dayjs/plugin/duration'
 import type { Dayjs } from 'dayjs'
 import { db } from './db/client'
 import { activityPeriods, validateNewActivityPeriod } from './db/schema'
-import { getAppSettings } from './settings'
 
 // Configure dayjs for main process
 dayjs.extend(utc)
@@ -41,46 +40,65 @@ let isTimerRunning = false
 let waitingForUserResponse = false // Track if we're waiting for idle dialog response
 
 export async function initializeIdleMonitor() {
-    // Load settings from database
-    const appSettings = await getAppSettings()
-    idleThreshold = appSettings.idleThresholdMinutes * 60 // Convert to seconds
-    idleDetectionEnabled = appSettings.idleDetectionEnabled
-
-    console.log('Idle monitor initialized with settings:', {
+    // Start with defaults; org settings arrive via IPC once the renderer loads
+    console.log('Idle monitor initialized with defaults:', {
         idleThreshold,
         idleDetectionEnabled,
     })
 
     registerIdleMonitorListeners()
 
-    // Start monitoring if idle detection is enabled (regardless of timer state)
+    // Start monitoring with defaults (enabled, 5 min)
     if (idleDetectionEnabled) {
         startIdleMonitoring()
     }
 }
 
 function registerIdleMonitorListeners() {
-    // Listen for idle threshold updates from renderer
-    ipcMain.on('updateIdleThreshold', (_event, thresholdMinutes: number) => {
-        if (typeof thresholdMinutes === 'number' && thresholdMinutes > 0) {
-            idleThreshold = thresholdMinutes * 60 // Convert minutes to seconds
-            console.log('Idle threshold updated to:', idleThreshold, 'seconds')
-        } else {
-            console.warn('Invalid idle threshold value:', thresholdMinutes)
-        }
-    })
+    // Listen for org idle settings from renderer
+    ipcMain.on(
+        'updateOrgIdleSettings',
+        (_event, settings: { enabled: boolean; thresholdMinutes: number } | null) => {
+            if (settings === null) {
+                // No org / logged out — reset to defaults
+                idleDetectionEnabled = true
+                idleThreshold = 300
+                console.log('Idle detection reset to defaults (no org settings)')
+                if (!idleCheckInterval) {
+                    startIdleMonitoring()
+                }
+                return
+            }
 
-    // Listen for idle detection enabled/disabled from renderer
-    ipcMain.on('updateIdleDetectionEnabled', (_event, enabled: boolean) => {
-        console.log('Idle detection enabled:', enabled, idleThreshold)
+            const newThreshold =
+                typeof settings.thresholdMinutes === 'number' &&
+                settings.thresholdMinutes >= 1 &&
+                settings.thresholdMinutes <= 60
+                    ? settings.thresholdMinutes * 60
+                    : 300
+            idleThreshold = newThreshold
 
-        idleDetectionEnabled = enabled
-        if (!enabled && idleCheckInterval) {
-            stopIdleMonitoring()
-        } else if (enabled && !idleCheckInterval) {
-            startIdleMonitoring()
+            const newEnabled = settings.enabled
+            if (newEnabled && !idleDetectionEnabled) {
+                idleDetectionEnabled = true
+                if (!idleCheckInterval) {
+                    startIdleMonitoring()
+                }
+            } else if (!newEnabled && idleDetectionEnabled) {
+                idleDetectionEnabled = false
+                if (idleCheckInterval) {
+                    stopIdleMonitoring()
+                }
+            } else {
+                idleDetectionEnabled = newEnabled
+            }
+
+            console.log('Idle detection settings updated:', {
+                enabled: idleDetectionEnabled,
+                thresholdSeconds: idleThreshold,
+            })
         }
-    })
+    )
 
     // Listen for timer state changes
     ipcMain.on('timerStateChanged', (_event, running: boolean) => {
