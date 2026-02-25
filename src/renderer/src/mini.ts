@@ -6,19 +6,16 @@ const app = createApp(Mini)
 
 import * as Sentry from '@sentry/electron/renderer'
 
-Sentry.init({
-    integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
-
-    // Set tracesSampleRate to 1.0 to capture 100%
-    // of transactions for performance monitoring.
-    // We recommend adjusting this value in production
-    tracesSampleRate: 0.1,
-
-    // Capture Replay for 10% of all sessions,
-    // plus for 100% of sessions with an error
-    replaysSessionSampleRate: 0.1,
-    replaysOnErrorSampleRate: 1.0,
-})
+// Only initialize when you provide your own DSN (no data sent to third parties by default)
+if (import.meta.env.VITE_SENTRY_DSN) {
+    Sentry.init({
+        dsn: import.meta.env.VITE_SENTRY_DSN,
+        integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
+        tracesSampleRate: 0.1,
+        replaysSessionSampleRate: 0.1,
+        replaysOnErrorSampleRate: 1.0,
+    })
+}
 
 app.use(VueQueryPlugin)
 app.mount('#app')

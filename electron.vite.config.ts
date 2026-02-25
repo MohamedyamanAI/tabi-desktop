@@ -1,9 +1,6 @@
-import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
-
-const isProduction = process.env.NODE_ENV === 'production'
 
 export default defineConfig({
     main: {
@@ -12,28 +9,14 @@ export default defineConfig({
         },
         plugins: [
             externalizeDepsPlugin(),
-            ...(isProduction
-                ? [
-                      sentryVitePlugin({
-                          org: 'solidtime',
-                          project: 'desktop',
-                      }),
-                  ]
-                : []),
+            // Sentry: set SENTRY_ORG + SENTRY_PROJECT env and add sentryVitePlugin to upload source maps
         ],
     },
 
     preload: {
         plugins: [
             externalizeDepsPlugin(),
-            ...(isProduction
-                ? [
-                      sentryVitePlugin({
-                          org: 'solidtime',
-                          project: 'desktop',
-                      }),
-                  ]
-                : []),
+            // Sentry: set SENTRY_ORG + SENTRY_PROJECT env and add sentryVitePlugin to upload source maps
         ],
         build: {
             sourcemap: true,
@@ -64,14 +47,7 @@ export default defineConfig({
         },
         plugins: [
             vue(),
-            ...(isProduction
-                ? [
-                      sentryVitePlugin({
-                          org: 'solidtime',
-                          project: 'desktop',
-                      }),
-                  ]
-                : []),
+            // Sentry: set SENTRY_ORG + SENTRY_PROJECT env and add sentryVitePlugin to upload source maps
         ],
     },
 })

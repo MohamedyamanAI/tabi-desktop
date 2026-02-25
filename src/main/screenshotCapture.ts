@@ -213,7 +213,7 @@ async function captureScreenshot(): Promise<void> {
             .toBuffer()
 
         // Save to temp file
-        const tempDir = path.join(app.getPath('temp'), 'solidtime-screenshots')
+        const tempDir = path.join(app.getPath('temp'), 'tabi-screenshots')
         if (!fs.existsSync(tempDir)) {
             fs.mkdirSync(tempDir, { recursive: true })
         }

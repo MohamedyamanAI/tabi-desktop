@@ -10,7 +10,7 @@ const state = ref('')
 export const endpoint = useStorage('instance_endpoint', 'https://tabitrack.com')
 export const clientId = useStorage('instance_client_id', '019c8cfe-5dde-7393-8a03-215c84373cdd')
 
-const redirectUrl = 'solidtime://oauth/callback'
+const redirectUrl = 'tabi://oauth/callback'
 
 const loginUrl = computed(() => {
     return (
@@ -123,7 +123,7 @@ export async function initializeAuth(queryClient: QueryClient) {
     window.localStorage.setItem('verifier', verifier)
 
     window.electronAPI.onOpenDeeplink(async (payload: string) => {
-        const oauthCallbackUrl = 'solidtime://oauth/callback'
+        const oauthCallbackUrl = 'tabi://oauth/callback'
         if (payload.includes(oauthCallbackUrl)) {
             const urlParams = new URLSearchParams(payload.replace(oauthCallbackUrl, ''))
             const accessCode = urlParams.get('code')

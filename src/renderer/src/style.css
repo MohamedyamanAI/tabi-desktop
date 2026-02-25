@@ -1,4 +1,4 @@
-/* Import shared solidtime styles from UI package */
+/* Import shared styles from UI package */
 @import '@solidtime/ui/styles.css';
 
 /* Desktop app specific styles - Inter font */

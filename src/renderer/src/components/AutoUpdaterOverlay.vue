@@ -31,7 +31,7 @@ const showUpdateIsInstalling = ref(false)
         <div v-if="!showUpdateIsInstalling" class="text-center">
             <h2 class="text-xl font-semibold">Update available!</h2>
             <p class="py-1 text-muted max-w-xs text-center">
-                There is a new update available for your solidtime desktop client.
+                There is a new update available for your Tabi desktop client.
             </p>
             <SecondaryButton class="mr-4" @click="showUpdateAvailableOverlay = false"
                 >Update Later</SecondaryButton

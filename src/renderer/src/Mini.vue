@@ -15,7 +15,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div v-if="!isLoggedIn" @click="focusMainWindow">Log in with solidtime</div>
+    <div v-if="!isLoggedIn" @click="focusMainWindow">Log in with Tabi</div>
     <MiniControls v-else></MiniControls>
 </template>
 

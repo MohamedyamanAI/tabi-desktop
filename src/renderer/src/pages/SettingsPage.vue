@@ -455,12 +455,12 @@ watch(activityTrackingEnabled, (enabled) => {
                         <li>Navigate to <strong>Privacy & Security</strong></li>
                         <li>Select <strong>Screen Recording</strong> from the list on the left</li>
                         <li>
-                            Find <strong>solidtime</strong> in the application list (or add it via
+                            Find <strong>Tabi</strong> in the application list (or add it via
                             the + button at the bottom)
                         </li>
                         <li>
                             Toggle the switch to enable screen recording for
-                            <strong>solidtime</strong>
+                            <strong>Tabi</strong>
                         </li>
                         <li>You may need to restart the application for changes to take effect</li>
                     </ol>

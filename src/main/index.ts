@@ -59,18 +59,19 @@ if (!gotTheLock) {
 
 initializeAutoUpdater()
 
-Sentry.init({
-    dsn: 'https://cc0104f2ce88d4490bbde2750b6483c4@o4507102829543424.ingest.de.sentry.io/4507783414939728',
-})
+// Only send errors to Sentry if you set SENTRY_DSN (e.g. your own project at sentry.io)
+if (process.env.SENTRY_DSN) {
+    Sentry.init({ dsn: process.env.SENTRY_DSN })
+}
 
 if (process.defaultApp) {
     if (process.argv.length >= 2) {
-        app.setAsDefaultProtocolClient('solidtime', process.execPath, [
+        app.setAsDefaultProtocolClient('tabi', process.execPath, [
             path.resolve(process.argv[1]),
         ])
     }
 } else {
-    app.setAsDefaultProtocolClient('solidtime')
+    app.setAsDefaultProtocolClient('tabi')
 }
 
 function createWindow(): void {
@@ -105,7 +106,7 @@ function createWindow(): void {
     }
 }
 
-// Allow self-signed certificates in development (e.g. solidtime.test)
+// Allow self-signed certificates in development (e.g. tabitrack.test)
 if (is.dev) {
     app.on('certificate-error', (event, _webContents, _url, _error, _certificate, callback) => {
         event.preventDefault()
@@ -127,7 +128,7 @@ app.whenReady().then(async () => {
     registerVueDevTools()
 
     // Set app user model id for windows
-    electronApp.setAppUserModelId('solidtime.desktop')
+    electronApp.setAppUserModelId('tabi.desktop')
 
     // Run database migrations first
     try {

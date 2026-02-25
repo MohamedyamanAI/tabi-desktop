@@ -1,10 +1,10 @@
 {
-    "name": "solidtime",
+    "name": "tabi",
     "version": "0.0.1",
-    "description": "Desktop App for solidtime - the modern open-source time tracker",
+    "description": "Desktop App for Tabi - time tracking by tabitrack.com",
     "main": "./out/main/index.js",
-    "author": "solidtime.io",
-    "homepage": "https://solidtime.io",
+    "author": "tabitrack.com",
+    "homepage": "https://tabitrack.com",
     "type": "module",
     "scripts": {
         "format": "prettier --write './**/*.{js,jsx,cjs,mjs,ts,tsx,cts,mts,vue}'",

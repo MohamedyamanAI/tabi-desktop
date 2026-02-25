@@ -1,4 +1,4 @@
-appId: io.solidtime.desktop
+appId: io.tabitrack.desktop
 productName: Tabi
 directories:
     buildResources: build
@@ -22,11 +22,11 @@ extraResources:
       filter:
           - '**/*'
 protocols:
-    name: solidtime
+    name: tabi
     schemes:
-        - solidtime
+        - tabi
 win:
-    executableName: solidtime
+    executableName: tabi
     target:
         - nsis
 nsis:
@@ -50,19 +50,19 @@ dmg:
 linux:
     artifactName: ${name}-${arch}.${ext}
     icon: build/icon.icns
-    executableName: solidtime
+    executableName: tabi
     target:
         - deb
         - tar.gz
         - rpm
     desktop:
         entry:
-            Name: solidtime
-            MimeType: x-scheme-handler/solidtime
-    maintainer: solidtime.io
+            Name: Tabi
+            MimeType: x-scheme-handler/tabi
+    maintainer: tabitrack.com
     category: Utility
     mimeTypes:
-        - x-scheme-handler/solidtime
+        - x-scheme-handler/tabi
 deb:
     depends:
         - libgtk-3-0

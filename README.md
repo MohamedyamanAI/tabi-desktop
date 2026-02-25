@@ -2,7 +2,7 @@
 
 Desktop client for Tabi — time tracking with screenshot monitoring for macOS, Windows, and Linux.
 
-Forked from [solidtime-desktop](https://github.com/solidtime-io/solidtime-desktop).
+Tabi Desktop — part of [tabitrack.com](https://tabitrack.com). Originally forked from [solidtime-desktop](https://github.com/solidtime-io/solidtime-desktop).
 
 ## Features
 
@@ -42,4 +42,4 @@ This project is open-source and available under the [GNU Affero General Public L
 
 ## Acknowledgments
 
-Built on top of [solidtime-desktop](https://github.com/solidtime-io/solidtime-desktop) by the solidtime team.
+Built on top of [solidtime-desktop](https://github.com/solidtime-io/solidtime-desktop).

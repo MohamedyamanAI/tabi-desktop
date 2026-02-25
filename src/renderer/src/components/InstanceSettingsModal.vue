@@ -43,7 +43,7 @@ function submit() {
             <div class="text-lg font-medium text-white" role="heading">Settings</div>
 
             <div class="mt-4 text-sm text-muted flex flex-col justify-center">
-                <InputLabel for="instanceEndpoint" value="Solidtime Instance Endpoint" />
+                <InputLabel for="instanceEndpoint" value="Tabi Instance Endpoint" />
                 <TextInput
                     id="instanceEndpoint"
                     v-model="tempEndpoint"
@@ -55,7 +55,7 @@ function submit() {
             </div>
 
             <div class="mt-4 text-sm text-muted flex flex-col justify-center">
-                <InputLabel for="clientId" value="Solidtime Instance Client Id" />
+                <InputLabel for="clientId" value="Tabi Instance Client Id" />
                 <TextInput
                     id="clientId"
                     v-model="tempClientId"

@@ -5,7 +5,7 @@ import path from 'path'
 import * as schema from './schema'
 
 // Create the database in the user data directory
-const dbPath = path.join(app.getPath('userData'), 'solidtime.db')
+const dbPath = path.join(app.getPath('userData'), 'tabi.db')
 
 // Create better-sqlite3 client
 const client = new Database(dbPath)
