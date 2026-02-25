@@ -65,19 +65,27 @@ jobs:
               env:
                   GH_TOKEN: ${{ secrets.GH_TOKEN }}
                   USE_SYSTEM_FPM: ${{ matrix.arch == 'arm64' && 'true' || 'false' }}
-
+            
             - name: Run Electron Builder (macOS)
               if: matrix.platform == 'mac'
               run: |
-                  if [ -n "$API_KEY" ]; then
-                    echo "$API_KEY" > apple.p8
-                  fi
                   npx electron-builder --mac --universal --publish always
               env:
                   GH_TOKEN: ${{ secrets.GH_TOKEN }}
-                  CSC_LINK: ${{ secrets.MAC_CERTS }}
-                  CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
-                  API_KEY: ${{ secrets.API_KEY }}
-                  APPLE_API_KEY: ${{ secrets.API_KEY != '' && 'apple.p8' || '' }}
-                  APPLE_API_KEY_ID: ${{ secrets.API_KEY_ID }}
-                  APPLE_API_ISSUER: ${{ secrets.API_KEY_ISSUER_ID }}
+                  CSC_IDENTITY_AUTO_DISCOVERY: false
+                  
+            # - name: Run Electron Builder (macOS)
+            #   if: matrix.platform == 'mac'
+            #   run: |
+            #       if [ -n "$API_KEY" ]; then
+            #         echo "$API_KEY" > apple.p8
+            #       fi
+            #       npx electron-builder --mac --universal --publish always
+            #   env:
+            #       GH_TOKEN: ${{ secrets.GH_TOKEN }}
+            #       CSC_LINK: ${{ secrets.MAC_CERTS }}
+            #       CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+            #       API_KEY: ${{ secrets.API_KEY }}
+            #       APPLE_API_KEY: ${{ secrets.API_KEY != '' && 'apple.p8' || '' }}
+            #       APPLE_API_KEY_ID: ${{ secrets.API_KEY_ID }}
+            #       APPLE_API_ISSUER: ${{ secrets.API_KEY_ISSUER_ID }}
