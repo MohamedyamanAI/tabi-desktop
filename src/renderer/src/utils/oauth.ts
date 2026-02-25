@@ -7,8 +7,8 @@ import { emptyTimeEntry } from './timeEntries'
 
 const challenge = ref('')
 const state = ref('')
-export const endpoint = useStorage('instance_endpoint', 'https://app.solidtime.io')
-export const clientId = useStorage('instance_client_id', '9c994748-c593-4a6d-951b-6849c829bc4e')
+export const endpoint = useStorage('instance_endpoint', 'https://tabitrack.com')
+export const clientId = useStorage('instance_client_id', '019c8d01-201d-71d0-9052-842d5131050e')
 
 const redirectUrl = 'solidtime://oauth/callback'
 
