@@ -1,17 +1,15 @@
 name: Build/release Electron app
-
 on:
     push:
         tags:
             - 'v*.*.*'
-
 jobs:
     release:
         runs-on: ${{ matrix.os }}
         env:
             SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
-
         strategy:
+            fail-fast: false
             matrix:
                 include:
                     - os: macos-latest
@@ -29,7 +27,6 @@ jobs:
                     - os: windows-11-arm
                       platform: windows
                       arch: arm64
-
         steps:
             - name: Check out Git repository
               uses: actions/checkout@v3
@@ -72,13 +69,15 @@ jobs:
             - name: Run Electron Builder (macOS)
               if: matrix.platform == 'mac'
               run: |
-                  echo "$API_KEY" > apple.p8
+                  if [ -n "$API_KEY" ]; then
+                    echo "$API_KEY" > apple.p8
+                  fi
                   npx electron-builder --mac --universal --publish always
               env:
                   GH_TOKEN: ${{ secrets.GH_TOKEN }}
                   CSC_LINK: ${{ secrets.MAC_CERTS }}
                   CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
                   API_KEY: ${{ secrets.API_KEY }}
-                  APPLE_API_KEY: apple.p8
+                  APPLE_API_KEY: ${{ secrets.API_KEY != '' && 'apple.p8' || '' }}
                   APPLE_API_KEY_ID: ${{ secrets.API_KEY_ID }}
                   APPLE_API_ISSUER: ${{ secrets.API_KEY_ISSUER_ID }}
