@@ -66,26 +66,87 @@ jobs:
                   GH_TOKEN: ${{ secrets.GH_TOKEN }}
                   USE_SYSTEM_FPM: ${{ matrix.arch == 'arm64' && 'true' || 'false' }}
             
-            - name: Run Electron Builder (macOS)
-              if: matrix.platform == 'mac'
-              run: |
-                  npx electron-builder --mac --universal --publish always
-              env:
-                  GH_TOKEN: ${{ secrets.GH_TOKEN }}
-                  CSC_IDENTITY_AUTO_DISCOVERY: false
-                  
+            # TODO: re-enable for testing purposes no signing needed
             # - name: Run Electron Builder (macOS)
             #   if: matrix.platform == 'mac'
             #   run: |
-            #       if [ -n "$API_KEY" ]; then
-            #         echo "$API_KEY" > apple.p8
-            #       fi
             #       npx electron-builder --mac --universal --publish always
             #   env:
             #       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-            #       CSC_LINK: ${{ secrets.MAC_CERTS }}
-            #       CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
-            #       API_KEY: ${{ secrets.API_KEY }}
-            #       APPLE_API_KEY: ${{ secrets.API_KEY != '' && 'apple.p8' || '' }}
-            #       APPLE_API_KEY_ID: ${{ secrets.API_KEY_ID }}
-            #       APPLE_API_ISSUER: ${{ secrets.API_KEY_ISSUER_ID }}
+            #       CSC_IDENTITY_AUTO_DISCOVERY: false
+                  
+            - name: Run Electron Builder (macOS)
+              if: matrix.platform == 'mac'
+              run: |
+                  if [ -n "$API_KEY" ]; then
+                    echo "$API_KEY" > apple.p8
+                  fi
+                  npx electron-builder --mac --universal --publish always
+              env:
+                  GH_TOKEN: ${{ secrets.GH_TOKEN }}
+                  CSC_LINK: ${{ secrets.MAC_CERTS }}
+                  CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+                  API_KEY: ${{ secrets.API_KEY }}
+                  APPLE_API_KEY: ${{ secrets.API_KEY != '' && 'apple.p8' || '' }}
+                  APPLE_API_KEY_ID: ${{ secrets.API_KEY_ID }}
+                  APPLE_API_ISSUER: ${{ secrets.API_KEY_ISSUER_ID }}
+            
+
+          # ----------------------------------------------------------------
+            # Upload release assets to Cloudflare R2
+            # ----------------------------------------------------------------
+            # Files are uploaded to: releases/<tag>/<filename>
+            # e.g. releases/v0.0.1/tabi-Setup-0.0.1.exe
+            # Only installer files are uploaded — .blockmap files are skipped.
+            # ----------------------------------------------------------------
+            - name: Install AWS CLI (for R2 upload)
+              run: pip install awscli
+ 
+            - name: Upload to Cloudflare R2 (Windows)
+              if: matrix.platform == 'windows'
+              shell: bash
+              run: |
+                  TAG=${GITHUB_REF#refs/tags/}
+                  aws s3 cp dist/ s3://${{ secrets.R2_BUCKET_NAME }}/releases/$TAG/ \
+                    --recursive \
+                    --exclude "*" \
+                    --include "*.exe" \
+                    --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com \
+                    --no-progress
+              env:
+                  AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+                  AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+                  AWS_DEFAULT_REGION: auto
+ 
+            - name: Upload to Cloudflare R2 (Linux)
+              if: matrix.platform == 'linux'
+              run: |
+                  TAG=${GITHUB_REF#refs/tags/}
+                  aws s3 cp dist/ s3://${{ secrets.R2_BUCKET_NAME }}/releases/$TAG/ \
+                    --recursive \
+                    --exclude "*" \
+                    --include "*.AppImage" \
+                    --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com \
+                    --no-progress
+              env:
+                  AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+                  AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+                  AWS_DEFAULT_REGION: auto
+ 
+            - name: Upload to Cloudflare R2 (macOS)
+              if: matrix.platform == 'mac'
+              run: |
+                  TAG=${GITHUB_REF#refs/tags/}
+                  aws s3 cp dist/ s3://${{ secrets.R2_BUCKET_NAME }}/releases/$TAG/ \
+                    --recursive \
+                    --exclude "*" \
+                    --include "*.dmg" \
+                    --include "*.zip" \
+                    --exclude "*.blockmap" \
+                    --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com \
+                    --no-progress
+              env:
+                  AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+                  AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+                  AWS_DEFAULT_REGION: auto
+ 
