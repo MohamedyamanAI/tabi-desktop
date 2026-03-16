@@ -6,6 +6,8 @@ on:
 jobs:
     release:
         runs-on: ${{ matrix.os }}
+        env:
+            R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
         strategy:
             fail-fast: false
             matrix:
@@ -102,11 +104,11 @@ jobs:
             # Only installer files are uploaded — .blockmap files are skipped.
             # ----------------------------------------------------------------
             - name: Install AWS CLI (for R2 upload)
-              if: secrets.R2_BUCKET_NAME != ''
+              if: env.R2_BUCKET_NAME != ''
               run: pip install awscli
 
             - name: Upload to Cloudflare R2 (Windows)
-              if: matrix.platform == 'windows' && secrets.R2_BUCKET_NAME != ''
+              if: matrix.platform == 'windows' && env.R2_BUCKET_NAME != ''
               shell: bash
               run: |
                   TAG=${GITHUB_REF#refs/tags/}
@@ -122,7 +124,7 @@ jobs:
                   AWS_DEFAULT_REGION: auto
  
             - name: Upload to Cloudflare R2 (Linux)
-              if: matrix.platform == 'linux' && secrets.R2_BUCKET_NAME != ''
+              if: matrix.platform == 'linux' && env.R2_BUCKET_NAME != ''
               run: |
                   TAG=${GITHUB_REF#refs/tags/}
                   aws s3 cp dist/ s3://${{ secrets.R2_BUCKET_NAME }}/releases/$TAG/ \
@@ -137,7 +139,7 @@ jobs:
                   AWS_DEFAULT_REGION: auto
  
             - name: Upload to Cloudflare R2 (macOS)
-              if: matrix.platform == 'mac' && secrets.R2_BUCKET_NAME != ''
+              if: matrix.platform == 'mac' && env.R2_BUCKET_NAME != ''
               run: |
                   TAG=${GITHUB_REF#refs/tags/}
                   aws s3 cp dist/ s3://${{ secrets.R2_BUCKET_NAME }}/releases/$TAG/ \
