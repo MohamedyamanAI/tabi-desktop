@@ -55,7 +55,10 @@ export function registerScreenshotCaptureListeners(): void {
     // Listen for org screenshot settings from renderer
     ipcMain.on(
         'updateOrgScreenshotSettings',
-        (_event, settings: { enabled: boolean; intervalMinutes: number; blurred: boolean } | null) => {
+        (
+            _event,
+            settings: { enabled: boolean; intervalMinutes: number; blurred: boolean } | null
+        ) => {
             if (settings === null) {
                 // No org / logged out — disable capture
                 screenshotsEnabled = false

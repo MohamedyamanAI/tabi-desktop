@@ -82,11 +82,7 @@ async function setSetting(key: string, value: string): Promise<void> {
  */
 export async function getAppSettings(): Promise<AppSettings> {
     try {
-        const [
-            widgetActivated,
-            trayTimerActivated,
-            activityTrackingEnabled,
-        ] = await Promise.all([
+        const [widgetActivated, trayTimerActivated, activityTrackingEnabled] = await Promise.all([
             getSetting(SETTING_KEYS.WIDGET_ACTIVATED),
             getSetting(SETTING_KEYS.TRAY_TIMER_ACTIVATED),
             getSetting(SETTING_KEYS.ACTIVITY_TRACKING_ENABLED),

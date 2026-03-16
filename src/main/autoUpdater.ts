@@ -12,10 +12,16 @@ export function getAutoUpdater(): AppUpdater {
     return autoUpdater
 }
 
+const FOUR_HOURS_MS = 4 * 60 * 60 * 1000
+
 export function initializeAutoUpdater() {
     getAutoUpdater().autoDownload = false
     getAutoUpdater().autoInstallOnAppQuit = false
     getAutoUpdater().allowDowngrade = true
+
+    setInterval(() => {
+        getAutoUpdater().checkForUpdatesAndNotify()
+    }, FOUR_HOURS_MS)
 }
 
 export function registerAutoUpdateListeners(mainWindow: Electron.BrowserWindow) {

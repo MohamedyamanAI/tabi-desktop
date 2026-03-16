@@ -68,10 +68,11 @@ export function initializeScreenshotUpload(): void {
 
             console.log('Screenshot uploaded successfully')
             window.electronAPI.sendScreenshotUploadResult(filePath, true)
-        } catch (error: any) {
-            const details = error?.response
-                ? `HTTP ${error.response.status}: ${JSON.stringify(error.response.data)}`
-                : error?.message || String(error)
+        } catch (error: unknown) {
+            const axiosError = error as { response?: { status: number; data: unknown }; message?: string }
+            const details = axiosError?.response
+                ? `HTTP ${axiosError.response.status}: ${JSON.stringify(axiosError.response.data)}`
+                : axiosError?.message || String(error)
             console.error('Failed to upload screenshot:', details)
             window.electronAPI.sendScreenshotUploadResult(filePath, false)
         }

@@ -38,9 +38,7 @@ export interface IElectronAPI {
     onStopTimer: (callback: () => void) => void
     updateTrayState: (timeEntry: string, showTimer: boolean) => void
     updateAutoUpdater: () => void
-    updateOrgIdleSettings: (
-        settings: { enabled: boolean; thresholdMinutes: number } | null
-    ) => void
+    updateOrgIdleSettings: (settings: { enabled: boolean; thresholdMinutes: number } | null) => void
     updateActivityTrackingEnabled: (enabled: boolean) => void
     timerStateChanged: (running: boolean) => void
     onIdleDialogResponse: (

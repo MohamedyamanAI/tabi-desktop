@@ -37,16 +37,17 @@ nsis:
     createDesktopShortcut: always
 mac:
     entitlementsInherit: build/entitlements.mac.plist
-    target: default
+    target:
+        - dmg
+        - zip
     extendInfo:
         - NSCameraUsageDescription: Application requests access to the device's camera.
         - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
         - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
         - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
         - NSScreenCaptureUsageDescription: Application requests access to screen recording to track window activity for time tracking purposes.
-    notarize: true
 dmg:
-    artifactName: ${name}-${arch}.${ext}
+    artifactName: ${productName}.dmg
 linux:
     artifactName: ${name}-${arch}.${ext}
     icon: build/icon.icns
@@ -88,8 +89,8 @@ rpm:
     fpm:
         - --rpm-rpmbuild-define
         - _build_id_links none
-appImage:
-    artifactName: ${name}.${ext}
 npmRebuild: true
 publish:
     provider: github
+    owner: MohamedyamanAI
+    repo: tabi-desktop

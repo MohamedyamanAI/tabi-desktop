@@ -105,9 +105,7 @@ export function registerTrayListeners(tray: Tray, mainWindow: BrowserWindow) {
             currentTrayTimeEntry = timeEntry
             const isRunning = isTimerRunning(timeEntry)
             tray.setImage(nativeImage.createFromPath(getIconPath(isRunning)))
-            tray.setToolTip(
-                isRunning ? 'Tabi - Timer is running' : 'Tabi - Timer is stopped'
-            )
+            tray.setToolTip(isRunning ? 'Tabi - Timer is running' : 'Tabi - Timer is stopped')
             if (timerInterval) {
                 clearInterval(timerInterval)
                 timerInterval = undefined

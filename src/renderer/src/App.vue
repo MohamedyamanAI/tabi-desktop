@@ -278,8 +278,8 @@ whenever(cmdComma, () => {
                             fill="white" />
                     </svg>
                     <p class="text-center text-text-tertiary max-w-sm">
-                        Welcome to the Tabi desktop client. Sign in with your Tabi account
-                        to get started.
+                        Welcome to the Tabi desktop client. Sign in with your Tabi account to get
+                        started.
                     </p>
                     <PrimaryButton @click="openLoginWindow()">Log in with Tabi</PrimaryButton>
                     <button

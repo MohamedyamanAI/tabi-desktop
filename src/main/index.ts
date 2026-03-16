@@ -66,9 +66,7 @@ if (process.env.SENTRY_DSN) {
 
 if (process.defaultApp) {
     if (process.argv.length >= 2) {
-        app.setAsDefaultProtocolClient('tabi', process.execPath, [
-            path.resolve(process.argv[1]),
-        ])
+        app.setAsDefaultProtocolClient('tabi', process.execPath, [path.resolve(process.argv[1])])
     }
 } else {
     app.setAsDefaultProtocolClient('tabi')

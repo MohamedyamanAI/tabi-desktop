@@ -3,7 +3,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 
 // Lazy-load x-win module with detailed error reporting
-let xWinModule: any = null
+let xWinModule: typeof import('@miniben90/x-win') | null = null
 let xWinLoadError: Error | null = null
 
 async function loadXWinModule() {

@@ -14,19 +14,18 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const queryClient = useQueryClient()
-const organization =
-    inject<
-        ComputedRef<
-            | {
-                  screenshots_enabled: boolean
-                  screenshot_interval_minutes: number
-                  screenshots_blurred: boolean
-                  idle_detection_enabled: boolean
-                  idle_threshold_minutes: number
-              }
-            | undefined
-        >
-    >('organization')
+const organization = inject<
+    ComputedRef<
+        | {
+              screenshots_enabled: boolean
+              screenshot_interval_minutes: number
+              screenshots_blurred: boolean
+              idle_detection_enabled: boolean
+              idle_threshold_minutes: number
+          }
+        | undefined
+    >
+>('organization')
 
 const { data } = useQuery({
     queryKey: ['me'],
@@ -455,8 +454,8 @@ watch(activityTrackingEnabled, (enabled) => {
                         <li>Navigate to <strong>Privacy & Security</strong></li>
                         <li>Select <strong>Screen Recording</strong> from the list on the left</li>
                         <li>
-                            Find <strong>Tabi</strong> in the application list (or add it via
-                            the + button at the bottom)
+                            Find <strong>Tabi</strong> in the application list (or add it via the +
+                            button at the bottom)
                         </li>
                         <li>
                             Toggle the switch to enable screen recording for
