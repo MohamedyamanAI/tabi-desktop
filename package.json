@@ -5,6 +5,10 @@
     "main": "./out/main/index.js",
     "author": "tabitrack.com",
     "homepage": "https://tabitrack.com",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/MohamedyamanAI/tabi-desktop"
+    },
     "type": "module",
     "scripts": {
         "format": "prettier --write './**/*.{js,jsx,cjs,mjs,ts,tsx,cts,mts,vue}'",
