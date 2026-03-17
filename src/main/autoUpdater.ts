@@ -15,8 +15,8 @@ export function getAutoUpdater(): AppUpdater {
 const FOUR_HOURS_MS = 4 * 60 * 60 * 1000
 
 export function initializeAutoUpdater() {
-    getAutoUpdater().autoDownload = false
-    getAutoUpdater().autoInstallOnAppQuit = false
+    getAutoUpdater().autoDownload = true
+    getAutoUpdater().autoInstallOnAppQuit = true
     getAutoUpdater().allowDowngrade = true
 
     setInterval(() => {
