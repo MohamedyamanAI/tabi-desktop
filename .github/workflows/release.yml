@@ -96,10 +96,16 @@ jobs:
             - name: Run Electron Builder (macOS)
               if: matrix.platform == 'mac'
               run: |
+                  echo "$API_KEY" > apple.p8
                   npx electron-builder --mac --universal --publish always
               env:
                   GH_TOKEN: ${{ secrets.GH_TOKEN }}
-                  CSC_IDENTITY_AUTO_DISCOVERY: false
+                  CSC_LINK: ${{ secrets.MAC_CERTS }}
+                  CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+                  API_KEY: ${{ secrets.API_KEY }}
+                  APPLE_API_KEY: apple.p8
+                  APPLE_API_KEY_ID: ${{ secrets.API_KEY_ID }}
+                  APPLE_API_ISSUER: ${{ secrets.API_KEY_ISSUER_ID }}
 
             # ── Upload to Cloudflare R2 (latest/ only) ───────────────────────
             # Only the latest installers are stored in R2.
