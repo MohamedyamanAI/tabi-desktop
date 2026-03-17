@@ -31,6 +31,17 @@
         "afterSign": "electron-builder-notarize",
         "mac": {
             "hardenedRuntime": true
+        },
+        "linux": {
+            "target": [
+                "AppImage",
+                "deb"
+            ]
+        },
+        "win": {
+            "target": [
+                "nsis"
+            ]
         }
     },
     "dependencies": {
