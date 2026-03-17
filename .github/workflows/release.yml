@@ -6,13 +6,15 @@ name: Build/release Electron app
 # First install (download from website):
 #   → Files stored in Cloudflare R2 at releases/latest/ (stable URLs, no versioning)
 #   → Web app download button always points to:
-#       https://pub-xxx.r2.dev/releases/latest/tabi-Setup.exe
-#       https://pub-xxx.r2.dev/releases/latest/tabi-universal.dmg
-#       https://pub-xxx.r2.dev/releases/latest/tabi.AppImage
+#       https://pub-xxx.r2.dev/releases/latest/tabi-Setup.exe          (Windows x64)
+#       https://pub-xxx.r2.dev/releases/latest/tabi-Setup-arm64.exe    (Windows ARM64)
+#       https://pub-xxx.r2.dev/releases/latest/tabi-universal.dmg      (macOS universal)
+#       https://pub-xxx.r2.dev/releases/latest/tabi.AppImage           (Linux x64)
+#       https://pub-xxx.r2.dev/releases/latest/tabi-arm64.AppImage     (Linux ARM64)
 #
 # Auto-update (existing installs):
 #   → electron-updater reads latest.yml from GitHub releases
-#   → Downloads and installs update silently in the background
+#   → Downloads and installs update in the background
 #   → R2 is NOT used for updates at all
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -114,10 +116,16 @@ jobs:
               shell: bash
               run: |
                   R2_ENDPOINT="https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+                  if [ "${{ matrix.arch }}" = "arm64" ]; then
+                    STABLE_NAME="tabi-Setup-arm64.exe"
+                  else
+                    STABLE_NAME="tabi-Setup.exe"
+                  fi
                   for f in dist/*.exe; do
                     [ -f "$f" ] || continue
-                    echo "Uploading $f → releases/latest/tabi-Setup.exe"
-                    aws s3 cp "$f" s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/tabi-Setup.exe \
+                    [[ "$f" == *.blockmap ]] && continue
+                    echo "Uploading $f → releases/latest/$STABLE_NAME"
+                    aws s3 cp "$f" s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/$STABLE_NAME \
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
                   done
@@ -130,13 +138,11 @@ jobs:
               if: matrix.platform == 'linux' && env.R2_BUCKET_NAME != ''
               run: |
                   R2_ENDPOINT="https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
-
                   if [ "${{ matrix.arch }}" = "arm64" ]; then
                     STABLE_NAME="tabi-arm64.AppImage"
                   else
                     STABLE_NAME="tabi.AppImage"
                   fi
-
                   for f in dist/*.AppImage; do
                     [ -f "$f" ] || continue
                     echo "Uploading $f → releases/latest/$STABLE_NAME"
@@ -153,7 +159,6 @@ jobs:
               if: matrix.platform == 'mac' && env.R2_BUCKET_NAME != ''
               run: |
                   R2_ENDPOINT="https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
-
                   for f in dist/*.dmg; do
                     [ -f "$f" ] || continue
                     echo "Uploading $f → releases/latest/tabi-universal.dmg"
@@ -161,7 +166,6 @@ jobs:
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
                   done
-
                   for f in dist/*.zip; do
                     [ -f "$f" ] || continue
                     [[ "$f" == *.blockmap ]] && continue
