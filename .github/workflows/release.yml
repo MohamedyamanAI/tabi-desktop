@@ -111,7 +111,7 @@ jobs:
             - name: Run Electron Builder (macOS)
               if: matrix.platform == 'mac'
               run: |
-                  echo "$API_KEY" > apple.p8
+                  echo "$API_KEY" | base64 --decode > apple.p8
                   npx electron-builder --mac --universal --publish always
               env:
                   GH_TOKEN: ${{ secrets.GH_TOKEN }}
