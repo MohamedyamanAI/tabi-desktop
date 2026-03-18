@@ -1,6 +1,6 @@
 {
     "name": "Tabi",
-    "version": "0.1.11",
+    "version": "0.1.12",
     "description": "Desktop App for Tabi - time tracking by tabitrack.com",
     "main": "./out/main/index.js",
     "author": {
@@ -40,10 +40,15 @@
             "notarize": true
         },
         "linux": {
-            "target": ["AppImage", "deb"]
+            "target": [
+                "AppImage",
+                "deb"
+            ]
         },
         "win": {
-            "target": ["nsis"]
+            "target": [
+                "nsis"
+            ]
         }
     },
     "dependencies": {

@@ -15,8 +15,10 @@ asarUnpack:
     - node_modules/better-sqlite3/**
     - node_modules/sharp/**
 extraResources:
-    - from: drizzle
+    - from: drizzle/
       to: drizzle
+      filter:
+          - '**/*'
     - from: build/vc_redist.arm64.exe
       to: vc_redist.arm64.exe
       filter:
