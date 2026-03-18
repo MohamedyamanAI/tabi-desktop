@@ -31,9 +31,9 @@
     },
     "build": {
         "generateUpdatesFilesForAllChannels": true,
-        "afterSign": "electron-builder-notarize",
         "mac": {
-            "hardenedRuntime": true
+            "hardenedRuntime": true,
+            "notarize": true
         },
         "linux": {
             "target": [
