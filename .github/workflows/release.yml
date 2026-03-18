@@ -17,6 +17,8 @@ name: Build/release Electron app
 #   → GitHub repo is private so electron-updater cannot read GitHub releases
 #   → latest.yml is uploaded to R2 alongside the installers
 #   → package.json publish.url points to R2
+#   → latest.yml filenames are rewritten to stable names before upload
+#     (version field is preserved for version comparison)
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -149,9 +151,14 @@ jobs:
                       --no-progress
                   done
 
-                  # Upload update metadata (x64 only — one latest.yml per platform)
+                  # Rewrite versioned filenames in latest.yml to stable names
+                  # version field is preserved — only url/path fields are changed
                   if [ "${{ matrix.arch }}" = "x64" ] && [ -f dist/latest.yml ]; then
-                    echo "Uploading dist/latest.yml → releases/latest/latest.yml"
+                    VERSION=$(node -p "require('./package.json').version")
+                    sed -i "s/tabi-Setup-${VERSION}.exe/tabi-Setup.exe/g" dist/latest.yml
+                    sed -i "s/tabi Setup ${VERSION}.exe/tabi-Setup.exe/g" dist/latest.yml
+                    echo "--- latest.yml after rewrite ---"
+                    cat dist/latest.yml
                     aws s3 cp dist/latest.yml s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/latest.yml \
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
@@ -180,9 +187,14 @@ jobs:
                       --no-progress
                   done
 
-                  # Upload update metadata (x64 only — one latest-linux.yml)
+                  # Rewrite versioned filenames in latest-linux.yml to stable names
+                  # version field is preserved — only url/path fields are changed
                   if [ "${{ matrix.arch }}" = "x64" ] && [ -f dist/latest-linux.yml ]; then
-                    echo "Uploading dist/latest-linux.yml → releases/latest/latest-linux.yml"
+                    VERSION=$(node -p "require('./package.json').version")
+                    sed -i "s/tabi-${VERSION}.AppImage/tabi.AppImage/g" dist/latest-linux.yml
+                    sed -i "s/tabi-${VERSION}-arm64.AppImage/tabi-arm64.AppImage/g" dist/latest-linux.yml
+                    echo "--- latest-linux.yml after rewrite ---"
+                    cat dist/latest-linux.yml
                     aws s3 cp dist/latest-linux.yml s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/latest-linux.yml \
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
@@ -216,9 +228,14 @@ jobs:
                       --no-progress
                   done
 
-                  # Upload update metadata
+                  # Rewrite versioned filenames in latest-mac.yml to stable names
+                  # version field is preserved — only url/path fields are changed
                   if [ -f dist/latest-mac.yml ]; then
-                    echo "Uploading dist/latest-mac.yml → releases/latest/latest-mac.yml"
+                    VERSION=$(node -p "require('./package.json').version")
+                    sed -i '' "s/Tabi-${VERSION}-universal-mac\.zip/tabi-universal-mac.zip/g" dist/latest-mac.yml
+                    sed -i '' "s/Tabi-${VERSION}-universal\.dmg/tabi-universal.dmg/g" dist/latest-mac.yml
+                    echo "--- latest-mac.yml after rewrite ---"
+                    cat dist/latest-mac.yml
                     aws s3 cp dist/latest-mac.yml s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/latest-mac.yml \
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
