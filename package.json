@@ -1,6 +1,6 @@
 {
     "name": "tabi",
-    "version": "0.1.7",
+    "version": "0.1.8",
     "description": "Desktop App for Tabi - time tracking by tabitrack.com",
     "main": "./out/main/index.js",
     "author": {
@@ -57,7 +57,7 @@
         "@solidtime/ui": "^0.0.15",
         "better-sqlite3": "^11.7.0",
         "drizzle-orm": "^0.44.7",
-        "electron-updater": "^6.6.2",
+        "electron-updater": "^6.8.3",
         "pinia": "^3.0.3",
         "sharp": "^0.34.5",
         "vue-router": "^4.6.3"
