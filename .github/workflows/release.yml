@@ -13,9 +13,10 @@ name: Build/release Electron app
 #       https://pub-xxx.r2.dev/releases/latest/tabi-arm64.AppImage     (Linux ARM64)
 #
 # Auto-update (existing installs):
-#   → electron-updater reads latest.yml from GitHub releases
-#   → Downloads and installs update in the background
-#   → R2 is NOT used for updates at all
+#   → electron-updater reads latest.yml from Cloudflare R2 (not GitHub)
+#   → GitHub repo is private so electron-updater cannot read GitHub releases
+#   → latest.yml is uploaded to R2 alongside the installers
+#   → package.json publish.url points to R2
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -76,10 +77,6 @@ jobs:
             - name: Build
               run: npm run build
 
-            # ── Build & publish to GitHub releases ───────────────────────────
-            # GitHub releases store the installers + latest.yml files.
-            # electron-updater reads latest.yml to check for and download updates.
-
             - name: Run Electron Builder (Windows)
               if: matrix.platform == 'windows'
               run: npx electron-builder --windows --${{ matrix.arch }} --publish always
@@ -123,10 +120,9 @@ jobs:
                   APPLE_API_ISSUER: ${{ secrets.API_KEY_ISSUER_ID }}
 
             # ── Upload to Cloudflare R2 (latest/ only) ───────────────────────
-            # Only the latest installers are stored in R2.
-            # Files are uploaded with stable names (no version numbers) so the
-            # web app download URLs never need to change between releases.
-            # No versioned copies are stored — R2 is not an archive.
+            # Uploads installers AND latest.yml update metadata to R2.
+            # electron-updater reads latest.yml from R2 to detect new versions
+            # since the GitHub repo is private and cannot be read without a token.
 
             - name: Install AWS CLI (for R2 upload)
               if: env.R2_BUCKET_NAME != ''
@@ -142,6 +138,8 @@ jobs:
                   else
                     STABLE_NAME="tabi-Setup.exe"
                   fi
+
+                  # Upload installer
                   for f in dist/*.exe; do
                     [ -f "$f" ] || continue
                     [[ "$f" == *.blockmap ]] && continue
@@ -150,6 +148,14 @@ jobs:
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
                   done
+
+                  # Upload update metadata (x64 only — one latest.yml per platform)
+                  if [ "${{ matrix.arch }}" = "x64" ] && [ -f dist/latest.yml ]; then
+                    echo "Uploading dist/latest.yml → releases/latest/latest.yml"
+                    aws s3 cp dist/latest.yml s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/latest.yml \
+                      --endpoint-url $R2_ENDPOINT \
+                      --no-progress
+                  fi
               env:
                   AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
                   AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -164,6 +170,8 @@ jobs:
                   else
                     STABLE_NAME="tabi.AppImage"
                   fi
+
+                  # Upload installer
                   for f in dist/*.AppImage; do
                     [ -f "$f" ] || continue
                     echo "Uploading $f → releases/latest/$STABLE_NAME"
@@ -171,6 +179,14 @@ jobs:
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
                   done
+
+                  # Upload update metadata (x64 only — one latest-linux.yml)
+                  if [ "${{ matrix.arch }}" = "x64" ] && [ -f dist/latest-linux.yml ]; then
+                    echo "Uploading dist/latest-linux.yml → releases/latest/latest-linux.yml"
+                    aws s3 cp dist/latest-linux.yml s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/latest-linux.yml \
+                      --endpoint-url $R2_ENDPOINT \
+                      --no-progress
+                  fi
               env:
                   AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
                   AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -180,6 +196,8 @@ jobs:
               if: matrix.platform == 'mac' && env.R2_BUCKET_NAME != ''
               run: |
                   R2_ENDPOINT="https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+
+                  # Upload .dmg installer
                   for f in dist/*.dmg; do
                     [ -f "$f" ] || continue
                     echo "Uploading $f → releases/latest/tabi-universal.dmg"
@@ -187,6 +205,8 @@ jobs:
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
                   done
+
+                  # Upload .zip installer
                   for f in dist/*.zip; do
                     [ -f "$f" ] || continue
                     [[ "$f" == *.blockmap ]] && continue
@@ -195,6 +215,14 @@ jobs:
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
                   done
+
+                  # Upload update metadata
+                  if [ -f dist/latest-mac.yml ]; then
+                    echo "Uploading dist/latest-mac.yml → releases/latest/latest-mac.yml"
+                    aws s3 cp dist/latest-mac.yml s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/latest-mac.yml \
+                      --endpoint-url $R2_ENDPOINT \
+                      --no-progress
+                  fi
               env:
                   AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
                   AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

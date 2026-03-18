@@ -1,6 +1,6 @@
 {
     "name": "tabi",
-    "version": "0.1.8",
+    "version": "0.1.9",
     "description": "Desktop App for Tabi - time tracking by tabitrack.com",
     "main": "./out/main/index.js",
     "author": {
@@ -31,20 +31,19 @@
     },
     "build": {
         "generateUpdatesFilesForAllChannels": true,
+        "publish": {
+            "provider": "generic",
+            "url": "https://pub-e438c5d641984ba181976c5209481fbd.r2.dev/releases/latest/"
+        },
         "mac": {
             "hardenedRuntime": true,
             "notarize": true
         },
         "linux": {
-            "target": [
-                "AppImage",
-                "deb"
-            ]
+            "target": ["AppImage", "deb"]
         },
         "win": {
-            "target": [
-                "nsis"
-            ]
+            "target": ["nsis"]
         }
     },
     "dependencies": {
