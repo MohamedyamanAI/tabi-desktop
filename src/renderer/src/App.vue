@@ -35,7 +35,8 @@ import { useStorage } from '@vueuse/core'
 import { emptyTimeEntry } from './utils/timeEntries'
 import { useMyMemberships } from './utils/myMemberships'
 import { apiClient } from './utils/api'
-import type { Organization } from '@solidtime/api'
+import type { MyMembership, Organization } from '@solidtime/api'
+import BillingBanner from './components/BillingBanner.vue'
 
 // Extend with Tabi-specific org fields (present in API but not yet in published @solidtime/api types)
 interface OrgWithExtensions extends Organization {
@@ -44,6 +45,14 @@ interface OrgWithExtensions extends Organization {
     screenshots_blurred: boolean
     idle_detection_enabled: boolean
     idle_threshold_minutes: number
+}
+
+interface MembershipOrganizationExtensions {
+    tier?: string | null
+    is_blocked?: boolean
+    entitlements?: {
+        screenshots?: boolean
+    }
 }
 
 const router = useRouter()
@@ -76,7 +85,7 @@ watchEffect(() => {
 })
 
 // Fetch full organization data and provide it for child components
-const { currentOrganizationId } = useMyMemberships()
+const { currentOrganizationId, currentMembership } = useMyMemberships()
 const { data: organizationResponse } = useQuery({
     queryKey: ['organization', currentOrganizationId],
     queryFn: () =>
@@ -91,15 +100,55 @@ const organization = computed<OrgWithExtensions | undefined>(
 )
 provide('organization', organization)
 
+const hasScreenshotEntitlement = computed(() => {
+    const membershipOrg = currentMembership.value?.organization as
+        | (MyMembership['organization'] & MembershipOrganizationExtensions)
+        | undefined
+    return Boolean(membershipOrg?.entitlements?.screenshots)
+})
+
+const isOrgBlocked = computed(() => {
+    const membershipOrg = currentMembership.value?.organization as
+        | (MyMembership['organization'] & MembershipOrganizationExtensions)
+        | undefined
+    return Boolean(membershipOrg?.is_blocked)
+})
+
+const membershipTier = computed(() => {
+    const membershipOrg = currentMembership.value?.organization as
+        | (MyMembership['organization'] & MembershipOrganizationExtensions)
+        | undefined
+    return membershipOrg?.tier ?? 'free'
+})
+
+const canUseScreenshots = computed(() => {
+    return Boolean(
+        hasScreenshotEntitlement.value && !isOrgBlocked.value && organization.value?.screenshots_enabled
+    )
+})
+
+provide(
+    'organizationCapabilities',
+    computed(() => ({
+        hasScreenshotEntitlement: hasScreenshotEntitlement.value,
+        isOrgBlocked: isOrgBlocked.value,
+        canUseScreenshots: canUseScreenshots.value,
+    }))
+)
+
 // Send org screenshot settings to main process whenever they change
 watch(
     organization,
     (org) => {
         if (org) {
             window.electronAPI?.updateOrgScreenshotSettings({
-                enabled: org.screenshots_enabled,
+                enabled: canUseScreenshots.value,
                 intervalMinutes: org.screenshot_interval_minutes,
                 blurred: org.screenshots_blurred,
+                hasScreenshotEntitlement: hasScreenshotEntitlement.value,
+                isOrgBlocked: isOrgBlocked.value,
+                orgScreenshotsEnabled: org.screenshots_enabled,
+                tier: membershipTier.value,
             })
         } else {
             window.electronAPI?.updateOrgScreenshotSettings(null)
@@ -241,6 +290,10 @@ whenever(cmdComma, () => {
                 </div>
             </div>
             <div v-if="isLoggedIn" class="flex-1 flex flex-col overflow-hidden">
+                <BillingBanner
+                    :organization-id="currentOrganizationId"
+                    :is-org-blocked="isOrgBlocked"
+                    :membership-tier="membershipTier" />
                 <div class="flex-1 flex overflow-hidden">
                     <SidebarNavigation />
                     <router-view v-slot="{ Component }">

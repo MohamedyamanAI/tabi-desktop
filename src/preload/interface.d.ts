@@ -59,7 +59,17 @@ export interface IElectronAPI {
     deleteAllActivityPeriods: () => Promise<{ success: boolean; error?: string }>
     screenshotTimeEntryChanged: (timeEntryId: string | null) => void
     updateOrgScreenshotSettings: (
-        settings: { enabled: boolean; intervalMinutes: number; blurred: boolean } | null
+        settings:
+            | {
+                  enabled: boolean
+                  intervalMinutes: number
+                  blurred: boolean
+                  hasScreenshotEntitlement?: boolean
+                  isOrgBlocked?: boolean
+                  orgScreenshotsEnabled?: boolean
+                  tier?: string | null
+              }
+            | null
     ) => void
     onScreenshotCaptured: (
         callback: (data: {

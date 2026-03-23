@@ -26,6 +26,16 @@ const organization = inject<
         | undefined
     >
 >('organization')
+const organizationCapabilities = inject<
+    ComputedRef<
+        | {
+              hasScreenshotEntitlement: boolean
+              isOrgBlocked: boolean
+              canUseScreenshots: boolean
+          }
+        | undefined
+    >
+>('organizationCapabilities')
 
 const { data } = useQuery({
     queryKey: ['me'],
@@ -47,6 +57,13 @@ const isDeletingActivityPeriods = ref(false)
 const isDeletingIconCache = ref(false)
 const pendingScreenshots = ref(0)
 const myData = computed(() => data.value?.data)
+const hasScreenshotEntitlement = computed(
+    () => organizationCapabilities?.value?.hasScreenshotEntitlement ?? false
+)
+const canUseScreenshots = computed(() => organizationCapabilities?.value?.canUseScreenshots ?? false)
+const isScreenshotBlockedByOrg = computed(
+    () => hasScreenshotEntitlement.value && !canUseScreenshots.value && organizationCapabilities?.value?.isOrgBlocked
+)
 
 function onLogoutClick() {
     logout(queryClient)
@@ -154,7 +171,7 @@ async function confirmDeleteIconCache() {
 
 onMounted(async () => {
     // Check permission status on mount
-    if (activityTrackingEnabled.value || organization?.value?.screenshots_enabled) {
+    if (activityTrackingEnabled.value || organizationCapabilities?.value?.canUseScreenshots) {
         hasPermission.value = await window.electronAPI.checkScreenRecordingPermission()
     }
 
@@ -258,40 +275,48 @@ watch(activityTrackingEnabled, (enabled) => {
                 class="bg-card-background rounded-lg border border-card-background-separator p-6 mb-6">
                 <div class="mb-4 text-lg font-medium">Screenshots</div>
                 <div class="space-y-4">
-                    <div class="flex items-center space-x-2">
-                        <div
-                            class="w-2 h-2 rounded-full"
-                            :class="
-                                organization?.screenshots_enabled ? 'bg-green-500' : 'bg-gray-400'
-                            "></div>
-                        <span class="text-sm">
-                            Screenshot capture is
-                            <strong>{{
-                                organization?.screenshots_enabled ? 'enabled' : 'disabled'
-                            }}</strong>
-                            by your organization.
-                        </span>
-                    </div>
-                    <div v-if="organization?.screenshots_enabled" class="ml-4 space-y-3">
-                        <div class="text-xs text-muted">
-                            {{
-                                organization?.screenshots_blurred !== false
-                                    ? 'Blurred screenshots are'
-                                    : 'Clear screenshots are'
-                            }}
-                            captured at random intervals while a timer is running and uploaded to
-                            your organization's server.
-                        </div>
-                        <div class="text-sm">
-                            Capture interval:
-                            <strong>{{ organization.screenshot_interval_minutes }} minutes</strong>
-                        </div>
-                        <div v-if="pendingScreenshots > 0" class="text-xs text-yellow-600">
-                            {{ pendingScreenshots }} screenshot(s) pending upload
-                        </div>
-                    </div>
                     <div v-if="!organization" class="text-xs text-muted">
                         Loading organization settings...
+                    </div>
+                    <div v-else-if="!hasScreenshotEntitlement" class="text-xs text-muted">
+                        Screenshots are not included in your current organization plan.
+                    </div>
+                    <div v-else class="space-y-4">
+                        <div class="flex items-center space-x-2">
+                            <div
+                                class="w-2 h-2 rounded-full"
+                                :class="canUseScreenshots ? 'bg-green-500' : 'bg-gray-400'"></div>
+                            <span class="text-sm">
+                                Screenshot capture is
+                                <strong>{{ canUseScreenshots ? 'enabled' : 'disabled' }}</strong>
+                                by your organization.
+                            </span>
+                        </div>
+                        <div v-if="isScreenshotBlockedByOrg" class="ml-4 text-xs text-yellow-600">
+                            Screenshots are temporarily unavailable because this organization is
+                            blocked.
+                        </div>
+                        <div v-else-if="!canUseScreenshots" class="ml-4 text-xs text-muted">
+                            Screenshots are disabled by your organization settings.
+                        </div>
+                        <div v-if="canUseScreenshots" class="ml-4 space-y-3">
+                            <div class="text-xs text-muted">
+                                {{
+                                    organization?.screenshots_blurred !== false
+                                        ? 'Blurred screenshots are'
+                                        : 'Clear screenshots are'
+                                }}
+                                captured at random intervals while a timer is running and uploaded to
+                                your organization's server.
+                            </div>
+                            <div class="text-sm">
+                                Capture interval:
+                                <strong>{{ organization.screenshot_interval_minutes }} minutes</strong>
+                            </div>
+                            <div v-if="pendingScreenshots > 0" class="text-xs text-yellow-600">
+                                {{ pendingScreenshots }} screenshot(s) pending upload
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

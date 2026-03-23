@@ -61,7 +61,17 @@ if (process.contextIsolated || true) {
             screenshotTimeEntryChanged: (timeEntryId: string | null) =>
                 ipcRenderer.send('screenshotTimeEntryChanged', timeEntryId),
             updateOrgScreenshotSettings: (
-                settings: { enabled: boolean; intervalMinutes: number; blurred: boolean } | null
+                settings:
+                    | {
+                          enabled: boolean
+                          intervalMinutes: number
+                          blurred: boolean
+                          hasScreenshotEntitlement?: boolean
+                          isOrgBlocked?: boolean
+                          orgScreenshotsEnabled?: boolean
+                          tier?: string | null
+                      }
+                    | null
             ) => ipcRenderer.send('updateOrgScreenshotSettings', settings),
             onScreenshotCaptured: (callback) => {
                 const listener = (_event, value) => callback(value)

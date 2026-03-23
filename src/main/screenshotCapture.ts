@@ -57,7 +57,17 @@ export function registerScreenshotCaptureListeners(): void {
         'updateOrgScreenshotSettings',
         (
             _event,
-            settings: { enabled: boolean; intervalMinutes: number; blurred: boolean } | null
+            settings:
+                | {
+                      enabled: boolean
+                      intervalMinutes: number
+                      blurred: boolean
+                      hasScreenshotEntitlement?: boolean
+                      isOrgBlocked?: boolean
+                      orgScreenshotsEnabled?: boolean
+                      tier?: string | null
+                  }
+                | null
         ) => {
             if (settings === null) {
                 // No org / logged out — disable capture
@@ -100,6 +110,10 @@ export function registerScreenshotCaptureListeners(): void {
                 enabled: screenshotsEnabled,
                 intervalMinutes,
                 blurred: screenshotsBlurred,
+                hasScreenshotEntitlement: Boolean(settings.hasScreenshotEntitlement),
+                isOrgBlocked: Boolean(settings.isOrgBlocked),
+                orgScreenshotsEnabled: Boolean(settings.orgScreenshotsEnabled),
+                tier: settings.tier ?? 'free',
             })
         }
     )
