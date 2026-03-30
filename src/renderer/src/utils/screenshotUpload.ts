@@ -2,6 +2,7 @@ import { apiClient } from './api'
 import { useStorage } from '@vueuse/core'
 import { emptyTimeEntry } from './timeEntries'
 import type { TimeEntry } from '@solidtime/api'
+import { syncActivityDataForTimeEntry } from './activityDataCoordinator'
 
 let cleanupListener: (() => void) | null = null
 
@@ -67,6 +68,12 @@ export function initializeScreenshotUpload(): void {
             )
 
             console.log('Screenshot uploaded successfully')
+            // Extra flush of activity/app data after screenshot (primary sync is timer-driven in activityDataSync)
+            void syncActivityDataForTimeEntry(
+                organizationId,
+                entryId,
+                currentTimeEntry.value.start || undefined
+            ).catch((e) => console.error('Activity data sync after screenshot failed:', e))
             window.electronAPI.sendScreenshotUploadResult(filePath, true)
         } catch (error: unknown) {
             const axiosError = error as {

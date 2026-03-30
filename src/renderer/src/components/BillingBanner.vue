@@ -51,10 +51,7 @@ const showFreeUpgradeBanner = computed(
                     </span>
                 </div>
             </div>
-            <button
-                v-if="showBlockedBanner"
-                class="p-1"
-                @click="hideBlockedBanner = true">
+            <button v-if="showBlockedBanner" class="p-1" @click="hideBlockedBanner = true">
                 <XMarkIcon class="w-4 opacity-50 hover:opacity-100"></XMarkIcon>
             </button>
             <button

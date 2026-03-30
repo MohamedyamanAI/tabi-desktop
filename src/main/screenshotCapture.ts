@@ -5,9 +5,10 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { app } from 'electron'
 import sharp from 'sharp'
+import { getCurrentTimeEntryId, setCurrentTimeEntryId } from './timeEntryContext'
+import { handleScreenshotTimeEntryIdChanged } from './activityTracker'
 
 let isTimerRunning = false
-let currentTimeEntryId: string | null = null
 let screenshotsEnabled = false
 let intervalMinutes = 10
 let screenshotsBlurred = true
@@ -47,9 +48,13 @@ export function registerScreenshotCaptureListeners(): void {
         }
     })
 
-    // Listen for time entry ID changes
-    ipcMain.on('screenshotTimeEntryChanged', (_event, timeEntryId: string | null) => {
-        currentTimeEntryId = timeEntryId
+    // Listen for time entry ID changes (flush window segment before clearing id)
+    ipcMain.on('screenshotTimeEntryChanged', async (_event, timeEntryId: string | null) => {
+        const previous = getCurrentTimeEntryId()
+        const prevNorm = previous && previous.length > 0 ? previous : null
+        const nextNorm = timeEntryId && timeEntryId.length > 0 ? timeEntryId : null
+        await handleScreenshotTimeEntryIdChanged(prevNorm, nextNorm)
+        setCurrentTimeEntryId(nextNorm)
     })
 
     // Listen for org screenshot settings from renderer
@@ -57,17 +62,15 @@ export function registerScreenshotCaptureListeners(): void {
         'updateOrgScreenshotSettings',
         (
             _event,
-            settings:
-                | {
-                      enabled: boolean
-                      intervalMinutes: number
-                      blurred: boolean
-                      hasScreenshotEntitlement?: boolean
-                      isOrgBlocked?: boolean
-                      orgScreenshotsEnabled?: boolean
-                      tier?: string | null
-                  }
-                | null
+            settings: {
+                enabled: boolean
+                intervalMinutes: number
+                blurred: boolean
+                hasScreenshotEntitlement?: boolean
+                isOrgBlocked?: boolean
+                orgScreenshotsEnabled?: boolean
+                tier?: string | null
+            } | null
         ) => {
             if (settings === null) {
                 // No org / logged out — disable capture
@@ -194,7 +197,8 @@ function scheduleRandomCapture(intervalMs: number): void {
 
 async function captureScreenshot(): Promise<void> {
     try {
-        if (!currentTimeEntryId) {
+        const activeEntryId = getCurrentTimeEntryId()
+        if (!activeEntryId) {
             console.warn('No active time entry ID for screenshot capture')
             return
         }
@@ -244,7 +248,7 @@ async function captureScreenshot(): Promise<void> {
         // Add to pending uploads
         const pending: PendingScreenshot = {
             filePath,
-            timeEntryId: currentTimeEntryId,
+            timeEntryId: activeEntryId,
             capturedAt,
             retryCount: 0,
         }
@@ -254,11 +258,11 @@ async function captureScreenshot(): Promise<void> {
         const mainWindow = getMainWindow()
         if (mainWindow) {
             console.log(
-                `Sending screenshot to renderer: timeEntryId=${currentTimeEntryId}, capturedAt=${capturedAt}`
+                `Sending screenshot to renderer: timeEntryId=${activeEntryId}, capturedAt=${capturedAt}`
             )
             mainWindow.webContents.send('screenshotCaptured', {
                 filePath,
-                timeEntryId: currentTimeEntryId,
+                timeEntryId: activeEntryId,
                 capturedAt,
                 base64: webpBuffer.toString('base64'),
             })
@@ -342,7 +346,6 @@ function stopCapture(): void {
         clearTimeout(captureTimeout)
         captureTimeout = null
     }
-    currentTimeEntryId = null
     console.log('Screenshot capture stopped')
 }
 

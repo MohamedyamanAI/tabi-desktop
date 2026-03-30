@@ -1,7 +1,12 @@
 import { ipcMain } from 'electron'
 import { db } from './db/client'
 import { windowActivities } from './db/schema'
-import { and, gte, lte, sql, ne } from 'drizzle-orm'
+import { and, eq, gte, inArray, lte, sql, ne, or, isNull } from 'drizzle-orm'
+
+/** Same filter as getWindowActivityStats / getWindowActivities so local totals match synced data on the web. */
+function windowActivityIncludedInStatistics() {
+    return ne(windowActivities.appName, 'Unknown')
+}
 
 /**
  * Deletes all window activities from the database
@@ -34,7 +39,7 @@ export function registerWindowActivitiesHandlers() {
                     and(
                         gte(windowActivities.timestamp, startDate),
                         lte(windowActivities.timestamp, endDate),
-                        ne(windowActivities.appName, 'Unknown')
+                        windowActivityIncludedInStatistics()
                     )
                 )
                 .orderBy(windowActivities.timestamp)
@@ -61,7 +66,7 @@ export function registerWindowActivitiesHandlers() {
                     and(
                         gte(windowActivities.timestamp, startDate),
                         lte(windowActivities.timestamp, endDate),
-                        ne(windowActivities.appName, 'Unknown')
+                        windowActivityIncludedInStatistics()
                     )
                 )
                 .groupBy(
@@ -82,4 +87,52 @@ export function registerWindowActivitiesHandlers() {
     ipcMain.handle('deleteAllWindowActivities', async () => {
         return deleteAllWindowActivities()
     })
+
+    ipcMain.handle(
+        'getUnsyncedWindowActivitiesForTimeEntry',
+        async (_event, timeEntryId: string, _timeEntryStartUtc?: string | null) => {
+            try {
+                if (!timeEntryId) return []
+
+                return await db
+                    .select()
+                    .from(windowActivities)
+                    .where(
+                        and(
+                            eq(windowActivities.synced, false),
+                            or(
+                                eq(windowActivities.timeEntryId, timeEntryId),
+                                isNull(windowActivities.timeEntryId)
+                            ),
+                            windowActivityIncludedInStatistics()
+                        )
+                    )
+                    .orderBy(windowActivities.timestamp)
+            } catch (error) {
+                console.error('getUnsyncedWindowActivitiesForTimeEntry failed:', error)
+                return []
+            }
+        }
+    )
+
+    ipcMain.handle(
+        'markWindowActivitiesSynced',
+        async (_event, ids: number[], timeEntryIdForAssign?: string | null) => {
+            try {
+                if (ids.length === 0) return { success: true }
+                const patch: { synced: boolean; timeEntryId?: string } = { synced: true }
+                if (timeEntryIdForAssign) {
+                    patch.timeEntryId = timeEntryIdForAssign
+                }
+                await db.update(windowActivities).set(patch).where(inArray(windowActivities.id, ids))
+                return { success: true }
+            } catch (error) {
+                console.error('markWindowActivitiesSynced failed:', error)
+                return {
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                }
+            }
+        }
+    )
 }

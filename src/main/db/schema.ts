@@ -40,6 +40,21 @@ export const activityPeriods = sqliteTable('activity_periods', {
 export type ActivityPeriod = typeof activityPeriods.$inferSelect
 export type NewActivityPeriod = typeof activityPeriods.$inferInsert
 
+export const activitySamples = sqliteTable('activity_samples', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    timestamp: text('timestamp').notNull(),
+    keystrokes: integer('keystrokes').notNull().default(0),
+    mouseClicks: integer('mouse_clicks').notNull().default(0),
+    timeEntryId: text('time_entry_id'),
+    synced: integer('synced', { mode: 'boolean' }).notNull().default(false),
+    createdAt: text('created_at')
+        .notNull()
+        .$defaultFn(() => new Date().toISOString()),
+})
+
+export type ActivitySample = typeof activitySamples.$inferSelect
+export type NewActivitySample = typeof activitySamples.$inferInsert
+
 /**
  * Validates a NewActivityPeriod object before insertion
  * Ensures all timestamps are in proper UTC format
@@ -90,6 +105,8 @@ export const windowActivities = sqliteTable('window_activities', {
     windowTitle: text('window_title').notNull(), // Window title
     url: text('url'), // URL if available (for browsers)
     processId: integer('process_id'), // Process ID
+    timeEntryId: text('time_entry_id'),
+    synced: integer('synced', { mode: 'boolean' }).notNull().default(false),
     createdAt: text('created_at')
         .notNull()
         .$defaultFn(() => new Date().toISOString()),

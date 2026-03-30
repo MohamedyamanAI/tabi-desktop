@@ -1,14 +1,10 @@
 <script setup lang="ts">
 import { PrimaryButton, SecondaryButton, Checkbox, LoadingSpinner, Modal } from '@solidtime/ui'
 import { logout } from '../utils/oauth.ts'
-import {
-    isWidgetActivated,
-    isTrayTimerActivated,
-    activityTrackingEnabled,
-} from '../utils/settings.ts'
+import { isWidgetActivated, isTrayTimerActivated } from '../utils/settings.ts'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { getMe } from '../utils/me'
-import { computed, inject, onMounted, ref, watch } from 'vue'
+import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { ComputedRef } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -22,6 +18,8 @@ const organization = inject<
               screenshots_blurred: boolean
               idle_detection_enabled: boolean
               idle_threshold_minutes: number
+              activity_tracking_enabled?: boolean
+              app_activity_sync_enabled?: boolean
           }
         | undefined
     >
@@ -45,24 +43,83 @@ const { data } = useQuery({
 const showUpdateNotAvailable = ref(false)
 const checkingForUpdate = ref(false)
 const showErrorOnUpdateRequest = ref(false)
-const showPermissionModal = ref(false)
 const showManualInstructionsModal = ref(false)
-const showGrantPermissionButton = ref(false)
 const hasPermission = ref(false)
+const hasAccessibilityTrusted = ref(false)
 const showDeleteWindowActivitiesModal = ref(false)
 const showDeleteActivityPeriodsModal = ref(false)
+const showDeleteActivitySamplesModal = ref(false)
 const showDeleteIconCacheModal = ref(false)
 const isDeletingWindowActivities = ref(false)
 const isDeletingActivityPeriods = ref(false)
+const isDeletingActivitySamples = ref(false)
 const isDeletingIconCache = ref(false)
 const pendingScreenshots = ref(0)
 const myData = computed(() => data.value?.data)
 const hasScreenshotEntitlement = computed(
     () => organizationCapabilities?.value?.hasScreenshotEntitlement ?? false
 )
-const canUseScreenshots = computed(() => organizationCapabilities?.value?.canUseScreenshots ?? false)
+const canUseScreenshots = computed(
+    () => organizationCapabilities?.value?.canUseScreenshots ?? false
+)
 const isScreenshotBlockedByOrg = computed(
-    () => hasScreenshotEntitlement.value && !canUseScreenshots.value && organizationCapabilities?.value?.isOrgBlocked
+    () =>
+        hasScreenshotEntitlement.value &&
+        !canUseScreenshots.value &&
+        organizationCapabilities?.value?.isOrgBlocked
+)
+
+const orgActivityLevelOn = computed(() => Boolean(organization?.value?.activity_tracking_enabled))
+const orgAppActivitySyncOn = computed(() => Boolean(organization?.value?.app_activity_sync_enabled))
+
+const liveActivityBucket = ref<{ timestamp: string; keystrokes: number; mouse_clicks: number } | null>(
+    null
+)
+let liveBucketPoll: ReturnType<typeof setInterval> | null = null
+
+function startLiveBucketPoll() {
+    if (liveBucketPoll !== null) return
+    const tick = async () => {
+        if (!orgActivityLevelOn.value) {
+            liveActivityBucket.value = null
+            return
+        }
+        try {
+            liveActivityBucket.value = await window.electronAPI.getCurrentActivityBucket()
+        } catch {
+            liveActivityBucket.value = null
+        }
+    }
+    void tick()
+    liveBucketPoll = setInterval(() => void tick(), 1000)
+}
+
+function stopLiveBucketPoll() {
+    if (liveBucketPoll !== null) {
+        clearInterval(liveBucketPoll)
+        liveBucketPoll = null
+    }
+    liveActivityBucket.value = null
+}
+
+watch(
+    orgActivityLevelOn,
+    (on) => {
+        if (on) {
+            startLiveBucketPoll()
+        } else {
+            stopLiveBucketPoll()
+        }
+    },
+    { immediate: true }
+)
+
+onUnmounted(() => {
+    stopLiveBucketPoll()
+})
+
+const isMac = computed(
+    () => typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac')
 )
 
 function onLogoutClick() {
@@ -75,49 +132,23 @@ function triggerUpdate() {
     window.electronAPI.updateAutoUpdater()
 }
 
-async function handleActivityTrackingToggle(enabled: boolean) {
-    if (enabled) {
-        // Check if we already have permission
-        hasPermission.value = await window.electronAPI.checkScreenRecordingPermission()
-        if (!hasPermission.value) {
-            // Show modal to inform about optional permission
-            showPermissionModal.value = true
-        }
-        // Enable activity tracking regardless of permission status
-        window.electronAPI.updateActivityTrackingEnabled(enabled)
-    } else {
-        // Disabling activity tracking
-        window.electronAPI.updateActivityTrackingEnabled(enabled)
-        showGrantPermissionButton.value = false
-    }
-}
-
-async function requestPermission() {
+async function requestScreenRecording() {
     const granted = await window.electronAPI.requestScreenRecordingPermission()
-    showPermissionModal.value = false
-
-    if (granted) {
-        hasPermission.value = true
-        showGrantPermissionButton.value = false
-    } else {
-        // Permission request failed - show manual instructions
+    hasPermission.value = granted || (await window.electronAPI.checkScreenRecordingPermission())
+    if (!hasPermission.value) {
         showManualInstructionsModal.value = true
     }
 }
 
-function enableWithoutPermission() {
-    showPermissionModal.value = false
-    showGrantPermissionButton.value = true
+async function requestAccessibility() {
+    await window.electronAPI.promptAccessibilityTrusted()
+    hasAccessibilityTrusted.value = await window.electronAPI.checkAccessibilityTrusted()
 }
 
 function closeManualInstructions() {
     showManualInstructionsModal.value = false
-    showGrantPermissionButton.value = true
 }
 
-function reopenPermissionModal() {
-    showPermissionModal.value = true
-}
 async function confirmDeleteWindowActivities() {
     isDeletingWindowActivities.value = true
     try {
@@ -152,6 +183,23 @@ async function confirmDeleteActivityPeriods() {
     }
 }
 
+async function confirmDeleteActivitySamples() {
+    isDeletingActivitySamples.value = true
+    try {
+        const result = await window.electronAPI.deleteAllActivitySamples()
+        if (result.success) {
+            console.log('Activity samples deleted successfully')
+        } else {
+            console.error('Failed to delete activity samples:', result.error)
+        }
+    } catch (error) {
+        console.error('Error deleting activity samples:', error)
+    } finally {
+        isDeletingActivitySamples.value = false
+        showDeleteActivitySamplesModal.value = false
+    }
+}
+
 async function confirmDeleteIconCache() {
     isDeletingIconCache.value = true
     try {
@@ -169,12 +217,24 @@ async function confirmDeleteIconCache() {
     }
 }
 
-onMounted(async () => {
-    // Check permission status on mount
-    if (activityTrackingEnabled.value || organizationCapabilities?.value?.canUseScreenshots) {
+async function refreshLocalPermissionState() {
+    if (orgActivityLevelOn.value || organizationCapabilities?.value?.canUseScreenshots) {
         hasPermission.value = await window.electronAPI.checkScreenRecordingPermission()
     }
+    if (orgActivityLevelOn.value) {
+        hasAccessibilityTrusted.value = await window.electronAPI.checkAccessibilityTrusted()
+    }
+}
 
+watch(
+    () => organization?.value,
+    () => {
+        void refreshLocalPermissionState()
+    },
+    { immediate: true }
+)
+
+onMounted(async () => {
     // Fetch pending screenshot count
     try {
         pendingScreenshots.value = await window.electronAPI.getScreenshotPendingCount()
@@ -198,11 +258,6 @@ onMounted(async () => {
             showErrorOnUpdateRequest.value = false
         }, 5000)
     })
-})
-
-// Watch for activity tracking setting changes and notify main process
-watch(activityTrackingEnabled, (enabled) => {
-    handleActivityTrackingToggle(enabled)
 })
 </script>
 
@@ -245,26 +300,79 @@ watch(activityTrackingEnabled, (enabled) => {
                         <Checkbox v-model:checked="isTrayTimerActivated" name="tray_timer" />
                         <span class="ms-2 text-sm">Show Tray / Menu Bar Timer</span>
                     </label>
-                    <label class="flex items-center">
-                        <Checkbox
-                            v-model:checked="activityTrackingEnabled"
-                            name="activityTracking" />
-                        <span class="ms-2 text-sm">Enable Window Activity Tracking</span>
-                    </label>
-                    <div v-if="activityTrackingEnabled" class="ml-6 space-y-2">
-                        <div class="text-xs text-muted">
-                            Tracks the active window and application to show detailed activity in
-                            the calendar.
-                        </div>
-                        <div v-if="!hasPermission && activityTrackingEnabled" class="space-y-2">
-                            <p class="text-xs text-yellow-600">
-                                Screen Recording permission not granted. Activity tracking is
-                                enabled but window titles may not be captured.
+                </div>
+            </div>
+
+            <div
+                class="bg-card-background rounded-lg border border-card-background-separator p-6 mb-6">
+                <div class="mb-4 text-lg font-medium">Activity tracking</div>
+                <div v-if="!organization" class="text-xs text-muted">
+                    Loading organization settings...
+                </div>
+                <div v-else class="space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <div
+                            class="w-2 h-2 rounded-full"
+                            :class="orgActivityLevelOn ? 'bg-green-500' : 'bg-gray-400'"></div>
+                        <span class="text-sm">
+                            Activity level tracking is
+                            <strong>{{ orgActivityLevelOn ? 'on' : 'off' }}</strong>
+                            for your organization.
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div
+                            class="w-2 h-2 rounded-full"
+                            :class="orgAppActivitySyncOn ? 'bg-green-500' : 'bg-gray-400'"></div>
+                        <span class="text-sm">
+                            App activity sync is
+                            <strong>{{ orgAppActivitySyncOn ? 'on' : 'off' }}</strong>
+                            for your organization.
+                        </span>
+                    </div>
+                    <p class="text-xs text-muted">
+                        These options are managed by your organization.
+                    </p>
+                    <p
+                        v-if="orgActivityLevelOn && liveActivityBucket"
+                        class="text-xs text-text-secondary font-mono tabular-nums">
+                        This minute (UTC {{ liveActivityBucket.timestamp }}): {{ liveActivityBucket.keystrokes }}
+                        keystrokes, {{ liveActivityBucket.mouse_clicks }} clicks
+                    </p>
+                    <div
+                        v-if="orgActivityLevelOn"
+                        class="ml-1 space-y-3 border-l border-card-background-separator pl-4">
+                        <p class="text-xs text-muted">
+                            Window titles use Screen Recording on macOS. Keyboard and mouse activity
+                            counts may require Accessibility (and Input Monitoring on some macOS
+                            versions).
+                        </p>
+                        <div v-if="!hasPermission" class="flex flex-wrap gap-2 items-center">
+                            <p class="text-xs text-yellow-600 w-full">
+                                Screen Recording is not granted; window titles may be missing.
                             </p>
                             <SecondaryButton
                                 class="text-xs py-1 px-2"
-                                @click="reopenPermissionModal">
-                                Grant Permission
+                                @click="requestScreenRecording">
+                                Open screen recording prompt
+                            </SecondaryButton>
+                            <SecondaryButton
+                                class="text-xs py-1 px-2"
+                                @click="showManualInstructionsModal = true">
+                                Manual steps
+                            </SecondaryButton>
+                        </div>
+                        <div
+                            v-if="isMac && !hasAccessibilityTrusted"
+                            class="flex flex-wrap gap-2 items-center">
+                            <p class="text-xs text-yellow-600 w-full">
+                                Accessibility is not trusted; activity level counts may stay at
+                                zero.
+                            </p>
+                            <SecondaryButton
+                                class="text-xs py-1 px-2"
+                                @click="requestAccessibility">
+                                Open Accessibility settings
                             </SecondaryButton>
                         </div>
                     </div>
@@ -306,12 +414,14 @@ watch(activityTrackingEnabled, (enabled) => {
                                         ? 'Blurred screenshots are'
                                         : 'Clear screenshots are'
                                 }}
-                                captured at random intervals while a timer is running and uploaded to
-                                your organization's server.
+                                captured at random intervals while a timer is running and uploaded
+                                to your organization's server.
                             </div>
                             <div class="text-sm">
                                 Capture interval:
-                                <strong>{{ organization.screenshot_interval_minutes }} minutes</strong>
+                                <strong
+                                    >{{ organization.screenshot_interval_minutes }} minutes</strong
+                                >
                             </div>
                             <div v-if="pendingScreenshots > 0" class="text-xs text-yellow-600">
                                 {{ pendingScreenshots }} screenshot(s) pending upload
@@ -407,6 +517,19 @@ watch(activityTrackingEnabled, (enabled) => {
                     </div>
                     <div class="flex items-center justify-between">
                         <div>
+                            <div class="text-sm font-medium">Activity samples</div>
+                            <div class="text-xs text-muted">
+                                Delete local keyboard/mouse minute buckets (not yet synced)
+                            </div>
+                        </div>
+                        <SecondaryButton
+                            class="text-red-500 hover:text-red-600"
+                            @click="showDeleteActivitySamplesModal = true">
+                            Delete All
+                        </SecondaryButton>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
                             <div class="text-sm font-medium">Icon Cache</div>
                             <div class="text-xs text-muted">Clear cached application icons</div>
                         </div>
@@ -420,38 +543,6 @@ watch(activityTrackingEnabled, (enabled) => {
             </div>
         </div>
     </div>
-
-    <!-- Screen Recording Permission Modal -->
-    <Modal :show="showPermissionModal" :maxWidth="'2xl'" :closeable="false">
-        <div class="px-6 py-4">
-            <div class="text-lg font-medium text-white mb-4" role="heading">
-                Improve Activity Tracking
-            </div>
-
-            <div class="text-sm text-muted space-y-3">
-                <p>
-                    Activity tracking is now enabled! To capture window titles and improve detection
-                    accuracy, grant screen recording permission.
-                </p>
-                <p>
-                    <strong>Your privacy matters:</strong> All data is stored locally on your device
-                    and is never transmitted to external servers.
-                </p>
-                <p class="text-xs text-muted">
-                    Without this permission, activity tracking will still work but may have limited
-                    information about window titles.
-                </p>
-            </div>
-        </div>
-
-        <div
-            class="flex flex-row justify-end px-6 py-4 border-t space-x-2 border-card-background-separator bg-default-background rounded-b-2xl text-end">
-            <SecondaryButton @click="enableWithoutPermission"
-                >Continue Without Permission</SecondaryButton
-            >
-            <PrimaryButton @click="requestPermission">Grant Permission</PrimaryButton>
-        </div>
-    </Modal>
 
     <!-- Manual Permission Instructions Modal -->
     <Modal
@@ -537,6 +628,45 @@ watch(activityTrackingEnabled, (enabled) => {
                 <div class="flex items-center">
                     <LoadingSpinner v-if="isDeletingWindowActivities"></LoadingSpinner>
                     <span>{{ isDeletingWindowActivities ? 'Deleting...' : 'Delete All' }}</span>
+                </div>
+            </PrimaryButton>
+        </div>
+    </Modal>
+
+    <!-- Delete Activity Samples Confirmation Modal -->
+    <Modal
+        :show="showDeleteActivitySamplesModal"
+        :maxWidth="'2xl'"
+        :closeable="!isDeletingActivitySamples"
+        @close="showDeleteActivitySamplesModal = false">
+        <div class="px-6 py-4">
+            <div class="text-lg font-medium text-white mb-4" role="heading">
+                Delete activity samples
+            </div>
+
+            <div class="text-sm text-muted space-y-3">
+                <p>
+                    Delete all locally stored activity level samples (per-minute keyboard and mouse
+                    counts)? Unsynced data will be removed from this device.
+                </p>
+                <p class="text-red-500 font-medium">This action cannot be undone.</p>
+            </div>
+        </div>
+
+        <div
+            class="flex flex-row justify-end px-6 py-4 border-t space-x-2 border-card-background-separator bg-default-background rounded-b-2xl text-end">
+            <SecondaryButton
+                :disabled="isDeletingActivitySamples"
+                @click="showDeleteActivitySamplesModal = false"
+                >Cancel</SecondaryButton
+            >
+            <PrimaryButton
+                :disabled="isDeletingActivitySamples"
+                class="bg-red-600 hover:bg-red-700"
+                @click="confirmDeleteActivitySamples">
+                <div class="flex items-center">
+                    <LoadingSpinner v-if="isDeletingActivitySamples"></LoadingSpinner>
+                    <span>{{ isDeletingActivitySamples ? 'Deleting...' : 'Delete All' }}</span>
                 </div>
             </PrimaryButton>
         </div>

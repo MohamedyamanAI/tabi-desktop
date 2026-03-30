@@ -20,9 +20,16 @@ import { initializeIdleMonitor } from './idleMonitor'
 import { runMigrations } from './db/migrate'
 import { registerActivityPeriodListeners } from './activityPeriods'
 import { registerSettingsListeners } from './settings'
-import { initializeActivityTracker, stopActivityTracking } from './activityTracker'
+import {
+    initializeActivityTracker,
+    startActivityTracking,
+    stopActivityTracking,
+} from './activityTracker'
 import { initializeScreenshotCapture, stopScreenshotCapture } from './screenshotCapture'
 import { registerWindowActivitiesHandlers } from './windowActivities'
+import { registerOrgActivitySettingsIPC } from './orgActivitySettings'
+import { startInputTracking, stopInputTracking } from './inputTracker'
+import { registerActivitySamplesHandlers } from './activitySamplesIpc'
 import { registerAppIconHandlers } from './appIcons'
 import * as Sentry from '@sentry/electron/main'
 import path from 'node:path'
@@ -169,7 +176,18 @@ app.whenReady().then(async () => {
     registerActivityPeriodListeners()
     registerSettingsListeners()
     registerWindowActivitiesHandlers()
+    registerActivitySamplesHandlers()
     registerAppIconHandlers()
+
+    registerOrgActivitySettingsIPC(async (enabled) => {
+        if (enabled) {
+            await startActivityTracking()
+            startInputTracking()
+        } else {
+            await stopActivityTracking()
+            await stopInputTracking()
+        }
+    })
 
     // Screen recording permission handlers
     ipcMain.handle('checkScreenRecordingPermission', async () => {
@@ -198,6 +216,16 @@ app.whenReady().then(async () => {
             }
         }
         return true // Non-macOS platforms don't need this permission
+    })
+
+    ipcMain.handle('checkAccessibilityTrusted', () => {
+        if (process.platform !== 'darwin') return true
+        return systemPreferences.isTrustedAccessibilityClient(false)
+    })
+
+    ipcMain.handle('promptAccessibilityTrusted', () => {
+        if (process.platform !== 'darwin') return true
+        return systemPreferences.isTrustedAccessibilityClient(true)
     })
 
     // Trigger macOS screen recording permission prompt on startup
@@ -247,6 +275,7 @@ app.on('before-quit', async (event) => {
 
         // Race the save operations against the timeout
         const savePromise = Promise.all([
+            stopInputTracking(),
             stopActivityTracking(),
             stopIdleMonitoring(),
             Promise.resolve(stopScreenshotCapture()),

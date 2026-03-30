@@ -49,3 +49,15 @@ export function shouldShowPermissionInstructions(): boolean {
     }
     return false
 }
+
+/**
+ * Global keyboard/mouse hooks (activity level) on macOS typically need Accessibility trust.
+ * Input Monitoring may also be required depending on OS version — users enable both under
+ * System Settings → Privacy & Security.
+ */
+export function getAccessibilityPermissionInstructions(): string {
+    if (process.platform === 'darwin') {
+        return 'Open System Settings → Privacy & Security → Accessibility (and Input Monitoring if listed) and enable Tabi.'
+    }
+    return ''
+}

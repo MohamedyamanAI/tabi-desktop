@@ -34,8 +34,12 @@ if (process.contextIsolated || true) {
             updateOrgIdleSettings: (
                 settings: { enabled: boolean; thresholdMinutes: number } | null
             ) => ipcRenderer.send('updateOrgIdleSettings', settings),
-            updateActivityTrackingEnabled: (enabled: boolean) =>
-                ipcRenderer.send('updateActivityTrackingEnabled', enabled),
+            updateOrgActivitySettings: (
+                settings: {
+                    activityTrackingEnabled: boolean
+                    appActivitySyncEnabled: boolean
+                } | null
+            ) => ipcRenderer.send('updateOrgActivitySettings', settings),
             timerStateChanged: (running: boolean) => ipcRenderer.send('timerStateChanged', running),
             getWindowActivities: (startDate: string, endDate: string) =>
                 ipcRenderer.invoke('getWindowActivities', startDate, endDate),
@@ -56,22 +60,48 @@ if (process.contextIsolated || true) {
                 ipcRenderer.invoke('checkScreenRecordingPermission'),
             requestScreenRecordingPermission: () =>
                 ipcRenderer.invoke('requestScreenRecordingPermission'),
+            checkAccessibilityTrusted: () => ipcRenderer.invoke('checkAccessibilityTrusted'),
+            promptAccessibilityTrusted: () => ipcRenderer.invoke('promptAccessibilityTrusted'),
             deleteAllWindowActivities: () => ipcRenderer.invoke('deleteAllWindowActivities'),
             deleteAllActivityPeriods: () => ipcRenderer.invoke('deleteAllActivityPeriods'),
+            getActivitySamples: (startDate: string, endDate: string) =>
+                ipcRenderer.invoke('getActivitySamples', startDate, endDate),
+            deleteAllActivitySamples: () => ipcRenderer.invoke('deleteAllActivitySamples'),
+            getUnsyncedActivitySamplesForTimeEntry: (
+                timeEntryId: string,
+                timeEntryStartUtc?: string | null
+            ) =>
+                ipcRenderer.invoke(
+                    'getUnsyncedActivitySamplesForTimeEntry',
+                    timeEntryId,
+                    timeEntryStartUtc
+                ),
+            markActivitySamplesSynced: (ids: number[], timeEntryIdForAssign?: string | null) =>
+                ipcRenderer.invoke('markActivitySamplesSynced', ids, timeEntryIdForAssign),
+            getCurrentActivityBucket: () => ipcRenderer.invoke('getCurrentActivityBucket'),
+            getUnsyncedWindowActivitiesForTimeEntry: (
+                timeEntryId: string,
+                timeEntryStartUtc?: string | null
+            ) =>
+                ipcRenderer.invoke(
+                    'getUnsyncedWindowActivitiesForTimeEntry',
+                    timeEntryId,
+                    timeEntryStartUtc
+                ),
+            markWindowActivitiesSynced: (ids: number[], timeEntryIdForAssign?: string | null) =>
+                ipcRenderer.invoke('markWindowActivitiesSynced', ids, timeEntryIdForAssign),
             screenshotTimeEntryChanged: (timeEntryId: string | null) =>
                 ipcRenderer.send('screenshotTimeEntryChanged', timeEntryId),
             updateOrgScreenshotSettings: (
-                settings:
-                    | {
-                          enabled: boolean
-                          intervalMinutes: number
-                          blurred: boolean
-                          hasScreenshotEntitlement?: boolean
-                          isOrgBlocked?: boolean
-                          orgScreenshotsEnabled?: boolean
-                          tier?: string | null
-                      }
-                    | null
+                settings: {
+                    enabled: boolean
+                    intervalMinutes: number
+                    blurred: boolean
+                    hasScreenshotEntitlement?: boolean
+                    isOrgBlocked?: boolean
+                    orgScreenshotsEnabled?: boolean
+                    tier?: string | null
+                } | null
             ) => ipcRenderer.send('updateOrgScreenshotSettings', settings),
             onScreenshotCaptured: (callback) => {
                 const listener = (_event, value) => callback(value)

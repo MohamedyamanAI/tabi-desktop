@@ -1,9 +1,10 @@
 import { db } from './db/client'
 import { windowActivities, validateNewWindowActivity } from './db/schema'
-import { getAppSettings } from './settings'
 import { hasScreenRecordingPermission } from './permissions'
-import { ipcMain, app } from 'electron'
+import { app } from 'electron'
 import { logger } from './logger'
+import { isOrgActivityTrackingEnabled } from './orgActivitySettings'
+import { getCurrentTimeEntryId } from './timeEntryContext'
 
 // Lazy-load x-win module with detailed error reporting
 let xWinModule: typeof import('@miniben90/x-win') | null = null
@@ -60,10 +61,11 @@ interface WindowInfo {
     url?: string
 }
 
-let activityTrackingEnabled = false
 let subscriptionId: number | null = null
 let lastWindowInfo: WindowInfo | null = null
 let currentActivityStartTime: Date | null = null
+/** Time entry for the open segment [currentActivityStartTime, now]; never written with null. */
+let segmentTimeEntryId: string | null = null
 
 /**
  * Sanitizes a URL by removing query parameters and fragments
@@ -88,38 +90,10 @@ function sanitizeUrl(url: string | undefined): string | null {
  */
 export async function initializeActivityTracker() {
     try {
-        const settings = await getAppSettings()
-        activityTrackingEnabled = settings.activityTrackingEnabled || false
-
-        logger.info('Activity tracker initialized. Enabled:', activityTrackingEnabled)
-
-        if (activityTrackingEnabled) {
-            await startActivityTracking()
-        }
-
-        // Register IPC listeners
-        registerActivityTrackerListeners()
+        logger.info('Activity tracker initialized (window tracking follows org activity settings)')
     } catch (error) {
         logger.error('Failed to initialize activity tracker:', error)
     }
-}
-
-/**
- * Register IPC listeners for activity tracker
- */
-function registerActivityTrackerListeners() {
-    ipcMain.handle('updateActivityTrackingEnabled', async (_event, enabled: boolean) => {
-        logger.info('Activity tracking enabled:', enabled)
-        activityTrackingEnabled = enabled
-
-        if (enabled) {
-            await startActivityTracking()
-        } else {
-            await stopActivityTracking()
-        }
-
-        return { success: true }
-    })
 }
 
 /**
@@ -155,6 +129,7 @@ export async function startActivityTracking(): Promise<void> {
         if (initialWindow) {
             lastWindowInfo = initialWindow as WindowInfo
             currentActivityStartTime = new Date()
+            segmentTimeEntryId = getCurrentTimeEntryId()
             logger.debug('Initial window:', lastWindowInfo.info.name, '-', lastWindowInfo.title)
         }
     } catch (error) {
@@ -188,15 +163,19 @@ async function handleWindowChange(windowInfo: WindowInfo): Promise<void> {
     // Check if this is a different window than the last one
     const isNewWindow =
         !lastWindowInfo ||
-        lastWindowInfo.id !== windowInfo.id ||
         lastWindowInfo.title !== windowInfo.title ||
         lastWindowInfo.info.name !== windowInfo.info.name
 
     if (isNewWindow && lastWindowInfo && currentActivityStartTime) {
-        // Save the previous window activity (check enabled state before saving)
-        if (activityTrackingEnabled) {
+        // Save the previous window activity only when tied to a running time entry
+        if (isOrgActivityTrackingEnabled() && segmentTimeEntryId) {
             try {
-                await saveWindowActivity(lastWindowInfo, currentActivityStartTime, now)
+                await saveWindowActivity(
+                    lastWindowInfo,
+                    currentActivityStartTime,
+                    now,
+                    segmentTimeEntryId
+                )
             } catch (error) {
                 logger.error('Failed to save window activity:', error)
             }
@@ -205,12 +184,14 @@ async function handleWindowChange(windowInfo: WindowInfo): Promise<void> {
         // Update to new window
         lastWindowInfo = windowInfo
         currentActivityStartTime = now
+        segmentTimeEntryId = getCurrentTimeEntryId()
 
         logger.debug('Window changed to:', windowInfo.info.name, '-', windowInfo.title)
     } else if (!lastWindowInfo) {
         // First window detected
         lastWindowInfo = windowInfo
         currentActivityStartTime = now
+        segmentTimeEntryId = getCurrentTimeEntryId()
     }
 }
 
@@ -220,8 +201,12 @@ async function handleWindowChange(windowInfo: WindowInfo): Promise<void> {
 async function saveWindowActivity(
     windowInfo: WindowInfo,
     startTime: Date,
-    endTime: Date
+    endTime: Date,
+    timeEntryId: string
 ): Promise<void> {
+    if (!timeEntryId) {
+        return
+    }
     try {
         const timestamp = startTime.toISOString()
         const durationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000)
@@ -238,6 +223,8 @@ async function saveWindowActivity(
             windowTitle: windowInfo.title || 'Untitled',
             url: sanitizeUrl(windowInfo.url),
             processId: windowInfo.info.processId || null,
+            timeEntryId,
+            synced: false,
         }
 
         // Validate before insertion
@@ -260,20 +247,24 @@ async function saveWindowActivity(
  * Saves the current activity if there is one (used when stopping tracking)
  */
 async function saveCurrentActivityIfNeeded(): Promise<void> {
-    if (!lastWindowInfo || !currentActivityStartTime) {
+    if (!lastWindowInfo || !currentActivityStartTime || !segmentTimeEntryId) {
         return
     }
 
     // Check enabled state before database operation
-    if (!activityTrackingEnabled) {
+    if (!isOrgActivityTrackingEnabled()) {
         return
     }
 
     const now = new Date()
 
     try {
-        // Save the current activity without resetting the start time
-        await saveWindowActivity(lastWindowInfo, currentActivityStartTime, now)
+        await saveWindowActivity(
+            lastWindowInfo,
+            currentActivityStartTime,
+            now,
+            segmentTimeEntryId
+        )
     } catch (error) {
         logger.error('Failed to save current activity:', error)
     }
@@ -296,6 +287,68 @@ export async function stopActivityTracking(): Promise<void> {
 
     lastWindowInfo = null
     currentActivityStartTime = null
+    segmentTimeEntryId = null
 
     logger.info('Activity tracking stopped')
+}
+
+/**
+ * Await before setCurrentTimeEntryId when the renderer updates the active time entry id.
+ * Flushes the open window segment when the timer stops; starts a fresh segment when it starts.
+ */
+export async function handleScreenshotTimeEntryIdChanged(
+    previousId: string | null,
+    nextId: string | null
+): Promise<void> {
+    if (previousId && nextId === null) {
+        const teForSave = segmentTimeEntryId ?? previousId
+        if (
+            isOrgActivityTrackingEnabled() &&
+            lastWindowInfo &&
+            currentActivityStartTime &&
+            teForSave
+        ) {
+            try {
+                await saveWindowActivity(
+                    lastWindowInfo,
+                    currentActivityStartTime,
+                    new Date(),
+                    teForSave
+                )
+            } catch (e) {
+                logger.error('Failed to flush window activity on timer stop:', e)
+            }
+        }
+        currentActivityStartTime = new Date()
+        segmentTimeEntryId = null
+        return
+    }
+
+    if (nextId && previousId === null) {
+        currentActivityStartTime = new Date()
+        segmentTimeEntryId = nextId
+        return
+    }
+
+    if (nextId && previousId && nextId !== previousId) {
+        if (
+            isOrgActivityTrackingEnabled() &&
+            lastWindowInfo &&
+            currentActivityStartTime &&
+            segmentTimeEntryId
+        ) {
+            try {
+                await saveWindowActivity(
+                    lastWindowInfo,
+                    currentActivityStartTime,
+                    new Date(),
+                    segmentTimeEntryId
+                )
+            } catch (e) {
+                logger.error('Failed to flush window activity on time entry id change:', e)
+            }
+        }
+        currentActivityStartTime = new Date()
+        segmentTimeEntryId = nextId
+    }
 }

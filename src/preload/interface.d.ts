@@ -7,11 +7,30 @@ export interface AppSettings {
 export interface WindowActivity {
     id: number
     timestamp: string
+    durationSeconds: number
     appName: string
     windowTitle: string
     url: string | null
     processId: number | null
+    timeEntryId: string | null
+    synced: boolean
     createdAt: string
+}
+
+export interface ActivitySampleRow {
+    id: number
+    timestamp: string
+    keystrokes: number
+    mouseClicks: number
+    timeEntryId: string | null
+    synced: boolean
+    createdAt: string
+}
+
+export interface CurrentActivityBucket {
+    timestamp: string
+    keystrokes: number
+    mouse_clicks: number
 }
 
 export interface WindowActivityStats {
@@ -39,7 +58,9 @@ export interface IElectronAPI {
     updateTrayState: (timeEntry: string, showTimer: boolean) => void
     updateAutoUpdater: () => void
     updateOrgIdleSettings: (settings: { enabled: boolean; thresholdMinutes: number } | null) => void
-    updateActivityTrackingEnabled: (enabled: boolean) => void
+    updateOrgActivitySettings: (
+        settings: { activityTrackingEnabled: boolean; appActivitySyncEnabled: boolean } | null
+    ) => void
     timerStateChanged: (running: boolean) => void
     onIdleDialogResponse: (
         callback: (data: { choice: number; idleStartTime: string; idleEndTime: string }) => void
@@ -55,21 +76,40 @@ export interface IElectronAPI {
     clearIconCache: () => Promise<{ success: boolean }>
     checkScreenRecordingPermission: () => Promise<boolean>
     requestScreenRecordingPermission: () => Promise<boolean>
+    checkAccessibilityTrusted: () => Promise<boolean>
+    promptAccessibilityTrusted: () => Promise<boolean>
     deleteAllWindowActivities: () => Promise<{ success: boolean; error?: string }>
     deleteAllActivityPeriods: () => Promise<{ success: boolean; error?: string }>
+    getActivitySamples: (startDate: string, endDate: string) => Promise<ActivitySampleRow[]>
+    deleteAllActivitySamples: () => Promise<{ success: boolean; error?: string }>
+    getUnsyncedActivitySamplesForTimeEntry: (
+        timeEntryId: string,
+        timeEntryStartUtc?: string | null
+    ) => Promise<ActivitySampleRow[]>
+    markActivitySamplesSynced: (
+        ids: number[],
+        timeEntryIdForAssign?: string | null
+    ) => Promise<{ success: boolean; error?: string }>
+    getCurrentActivityBucket: () => Promise<CurrentActivityBucket | null>
+    getUnsyncedWindowActivitiesForTimeEntry: (
+        timeEntryId: string,
+        timeEntryStartUtc?: string | null
+    ) => Promise<WindowActivity[]>
+    markWindowActivitiesSynced: (
+        ids: number[],
+        timeEntryIdForAssign?: string | null
+    ) => Promise<{ success: boolean; error?: string }>
     screenshotTimeEntryChanged: (timeEntryId: string | null) => void
     updateOrgScreenshotSettings: (
-        settings:
-            | {
-                  enabled: boolean
-                  intervalMinutes: number
-                  blurred: boolean
-                  hasScreenshotEntitlement?: boolean
-                  isOrgBlocked?: boolean
-                  orgScreenshotsEnabled?: boolean
-                  tier?: string | null
-              }
-            | null
+        settings: {
+            enabled: boolean
+            intervalMinutes: number
+            blurred: boolean
+            hasScreenshotEntitlement?: boolean
+            isOrgBlocked?: boolean
+            orgScreenshotsEnabled?: boolean
+            tier?: string | null
+        } | null
     ) => void
     onScreenshotCaptured: (
         callback: (data: {

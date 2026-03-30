@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query'
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
+import type { ComputedRef } from 'vue'
 import { LoadingSpinner, Accordion, DateRangePicker } from '@solidtime/ui'
 import { useMyMemberships } from '../utils/myMemberships.ts'
 import { getWindowActivityStats } from '../utils/windowActivities.ts'
-import { activityTrackingEnabled } from '../utils/settings.ts'
 import type { WindowActivityStats } from '../../../preload/interface'
 import StatisticsCard from '../components/StatisticsCard.vue'
 import { dayjs } from '../utils/dayjs.ts'
@@ -12,6 +12,12 @@ import { useAppIcons } from '../utils/appIcons.ts'
 
 const { currentOrganizationId } = useMyMemberships()
 const currentOrganizationLoaded = computed(() => !!currentOrganizationId.value)
+
+const organization =
+    inject<ComputedRef<{ activity_tracking_enabled?: boolean } | undefined>>('organization')
+const orgActivityTrackingEnabled = computed(() =>
+    Boolean(organization?.value?.activity_tracking_enabled)
+)
 
 // Date range for statistics (default to last 7 days)
 const start = ref(dayjs().subtract(7, 'days').startOf('day').format())
@@ -31,7 +37,7 @@ const { data: windowActivityStatsData, isLoading } = useQuery<WindowActivityStat
             end: dateRange.value.end,
         },
     ]),
-    enabled: computed(() => currentOrganizationLoaded.value && activityTrackingEnabled.value),
+    enabled: computed(() => currentOrganizationLoaded.value && orgActivityTrackingEnabled.value),
     placeholderData: (previousData) => previousData,
     queryFn: async () => {
         try {
@@ -166,10 +172,12 @@ const totalTime = computed(() => {
         <div v-if="!currentOrganizationLoaded" class="flex items-center justify-center h-full">
             <LoadingSpinner />
         </div>
-        <div v-else-if="!activityTrackingEnabled" class="flex items-center justify-center h-full">
+        <div
+            v-else-if="!orgActivityTrackingEnabled"
+            class="flex items-center justify-center h-full">
             <div class="text-center text-text-tertiary">
-                <p class="text-lg mb-2">Activity tracking is disabled</p>
-                <p class="text-sm">Enable activity tracking in Settings to see statistics</p>
+                <p class="text-lg mb-2">Activity tracking is off</p>
+                <p class="text-sm">Your organization can turn on activity tracking in Tabi.</p>
             </div>
         </div>
         <template v-else>

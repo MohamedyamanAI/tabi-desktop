@@ -1,6 +1,6 @@
 {
     "name": "Tabi",
-    "version": "0.1.13",
+    "version": "0.1.14",
     "description": "Desktop App for Tabi - time tracking by tabitrack.com",
     "main": "./out/main/index.js",
     "author": {
@@ -64,6 +64,7 @@
         "electron-updater": "^6.8.3",
         "pinia": "^3.0.3",
         "sharp": "^0.34.5",
+        "uiohook-napi": "^1.5.5",
         "vue-router": "^4.6.3"
     },
     "devDependencies": {

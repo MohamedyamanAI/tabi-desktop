@@ -9,7 +9,6 @@ export interface AppSettings {
 // Reactive settings that sync with the database
 export const isWidgetActivated = ref(true)
 export const isTrayTimerActivated = ref(true)
-export const activityTrackingEnabled = ref(false) // Off by default
 
 let isInitialized = false
 
@@ -24,7 +23,6 @@ export async function initializeSettings() {
         if (result.success && result.data) {
             isWidgetActivated.value = result.data.widgetActivated
             isTrayTimerActivated.value = result.data.trayTimerActivated
-            activityTrackingEnabled.value = result.data.activityTrackingEnabled
         }
 
         isInitialized = true
@@ -36,12 +34,6 @@ export async function initializeSettings() {
 
         watch(isTrayTimerActivated, (value) => {
             updateSetting({ trayTimerActivated: value })
-        })
-
-        watch(activityTrackingEnabled, (value) => {
-            updateSetting({ activityTrackingEnabled: value })
-            // Also notify main process for activity tracking
-            window.electronAPI.updateActivityTrackingEnabled(value)
         })
     } catch (error) {
         console.error('Failed to initialize settings:', error)

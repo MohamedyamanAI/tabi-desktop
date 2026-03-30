@@ -8,6 +8,13 @@
       "when": 1766337452313,
       "tag": "0000_panoramic_catseye",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1774726906340,
+      "tag": "0001_activity_level_tracking",
+      "breakpoints": true
     }
   ]
 }

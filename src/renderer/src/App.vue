@@ -29,10 +29,13 @@ import { listenForBackendEvent } from './utils/events.ts'
 import { getMe } from './utils/me'
 import { initializeSettings } from './utils/settings.ts'
 import { initializeScreenshotUpload } from './utils/screenshotUpload.ts'
+import { initializeActivityDataSync } from './utils/activityDataSync.ts'
+import {
+    orgActivityTrackingEnabled,
+    orgAppActivitySyncEnabled,
+} from './utils/orgActivityContext.ts'
 import { useLiveTimer } from './utils/liveTimer'
 import { dayjs } from './utils/dayjs'
-import { useStorage } from '@vueuse/core'
-import { emptyTimeEntry } from './utils/timeEntries'
 import { useMyMemberships } from './utils/myMemberships'
 import { apiClient } from './utils/api'
 import type { MyMembership, Organization } from '@solidtime/api'
@@ -45,6 +48,8 @@ interface OrgWithExtensions extends Organization {
     screenshots_blurred: boolean
     idle_detection_enabled: boolean
     idle_threshold_minutes: number
+    activity_tracking_enabled?: boolean
+    app_activity_sync_enabled?: boolean
 }
 
 interface MembershipOrganizationExtensions {
@@ -60,11 +65,10 @@ const router = useRouter()
 const queryClient = useQueryClient()
 
 // Use the timer composable for shared timer logic
-const { stopTimer, startTimer, isActive } = useTimer()
+const { stopTimer, startTimer, isActive, currentTimeEntry, lastTimeEntry } = useTimer()
 
 // Live timer for bottom row display
 const { liveTimer, startLiveTimer, stopLiveTimer } = useLiveTimer()
-const currentTimeEntry = useStorage('currentTimeEntry', { ...emptyTimeEntry })
 
 const currentTime = computed(() => {
     if (liveTimer.value && currentTimeEntry.value.start) {
@@ -123,7 +127,9 @@ const membershipTier = computed(() => {
 
 const canUseScreenshots = computed(() => {
     return Boolean(
-        hasScreenshotEntitlement.value && !isOrgBlocked.value && organization.value?.screenshots_enabled
+        hasScreenshotEntitlement.value &&
+        !isOrgBlocked.value &&
+        organization.value?.screenshots_enabled
     )
 })
 
@@ -172,6 +178,47 @@ watch(
     },
     { immediate: true }
 )
+
+watch(
+    organization,
+    async (org, prevOrg) => {
+        if (org) {
+            const activityTrackingEnabled = Boolean(org.activity_tracking_enabled)
+            const appActivitySyncEnabled = Boolean(org.app_activity_sync_enabled)
+            orgActivityTrackingEnabled.value = activityTrackingEnabled
+            orgAppActivitySyncEnabled.value = appActivitySyncEnabled
+            window.electronAPI?.updateOrgActivitySettings({
+                activityTrackingEnabled,
+                appActivitySyncEnabled,
+            })
+
+            const wasEnabled =
+                prevOrg !== undefined ? Boolean(prevOrg.activity_tracking_enabled) : undefined
+            if (wasEnabled === false && activityTrackingEnabled) {
+                const isMac =
+                    typeof navigator !== 'undefined' &&
+                    navigator.platform.toLowerCase().includes('mac')
+                if (
+                    isMac &&
+                    window.electronAPI?.checkAccessibilityTrusted &&
+                    window.electronAPI?.promptAccessibilityTrusted
+                ) {
+                    const trusted = await window.electronAPI.checkAccessibilityTrusted()
+                    if (!trusted) {
+                        await window.electronAPI.promptAccessibilityTrusted()
+                    }
+                }
+            }
+        } else {
+            orgActivityTrackingEnabled.value = false
+            orgAppActivitySyncEnabled.value = false
+            window.electronAPI?.updateOrgActivitySettings(null)
+        }
+    },
+    { immediate: true }
+)
+
+initializeActivityDataSync(isActive, currentTimeEntry, lastTimeEntry, currentOrganizationId)
 
 // Fetch user data for timezone and week start settings
 const { data: meResponse } = useQuery({
@@ -291,9 +338,9 @@ whenever(cmdComma, () => {
             </div>
             <div v-if="isLoggedIn" class="flex-1 flex flex-col overflow-hidden">
                 <BillingBanner
-                    :organization-id="currentOrganizationId"
-                    :is-org-blocked="isOrgBlocked"
-                    :membership-tier="membershipTier" />
+                    :organizationId="currentOrganizationId"
+                    :isOrgBlocked="isOrgBlocked"
+                    :membershipTier="membershipTier" />
                 <div class="flex-1 flex overflow-hidden">
                     <SidebarNavigation />
                     <router-view v-slot="{ Component }">
