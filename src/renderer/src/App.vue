@@ -233,17 +233,23 @@ watch(meResponse, () => {
     }
 })
 
-// Watch timer state and notify main process for idle detection and screenshot capture
-watch(isActive, (active) => {
-    if (window.electronAPI?.timerStateChanged) {
-        window.electronAPI.timerStateChanged(active)
-    }
-    if (active && currentTimeEntry.value?.id) {
-        window.electronAPI?.screenshotTimeEntryChanged(currentTimeEntry.value.id)
-    } else if (!active) {
-        window.electronAPI?.screenshotTimeEntryChanged(null)
-    }
-})
+// Watch timer state and notify main process for idle detection and screenshot capture.
+// immediate: so main process matches a timer restored from localStorage on launch (otherwise
+// idle dialog never appears until the user stops/starts the timer again).
+watch(
+    isActive,
+    (active) => {
+        if (window.electronAPI?.timerStateChanged) {
+            window.electronAPI.timerStateChanged(active)
+        }
+        if (active && currentTimeEntry.value?.id) {
+            window.electronAPI?.screenshotTimeEntryChanged(currentTimeEntry.value.id)
+        } else if (!active) {
+            window.electronAPI?.screenshotTimeEntryChanged(null)
+        }
+    },
+    { immediate: true }
+)
 
 // Watch for time entry ID changes (e.g. when server assigns the real ID)
 watch(
