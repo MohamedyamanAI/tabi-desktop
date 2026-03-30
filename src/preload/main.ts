@@ -90,6 +90,8 @@ if (process.contextIsolated || true) {
                 ),
             markWindowActivitiesSynced: (ids: number[], timeEntryIdForAssign?: string | null) =>
                 ipcRenderer.invoke('markWindowActivitiesSynced', ids, timeEntryIdForAssign),
+            deleteLocalActivityForTimeEntries: (timeEntryIds: string[]) =>
+                ipcRenderer.invoke('deleteLocalActivityForTimeEntries', timeEntryIds),
             screenshotTimeEntryChanged: (timeEntryId: string | null) =>
                 ipcRenderer.send('screenshotTimeEntryChanged', timeEntryId),
             updateOrgScreenshotSettings: (

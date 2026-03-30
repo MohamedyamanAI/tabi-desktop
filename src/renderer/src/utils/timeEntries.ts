@@ -8,6 +8,7 @@ import type {
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { InfiniteData } from '@tanstack/vue-query'
 import { useMyMemberships } from './myMemberships.ts'
+import { deleteLocalActivityForTimeEntryIds } from './localActivityCleanup.ts'
 
 export const emptyTimeEntry = {
     id: '',
@@ -24,6 +25,19 @@ export const emptyTimeEntry = {
 } as TimeEntry
 
 const offlineUuidStore = {} as Record<string, string>
+
+/** Local SQLite may use optimistic id or server id; delete rows for both after a time entry is removed. */
+function timeEntryIdsForLocalActivityCleanup(timeEntry: TimeEntry): string[] {
+    const ids = new Set<string>()
+    if (timeEntry.id) {
+        ids.add(timeEntry.id)
+    }
+    const mapped = offlineUuidStore[timeEntry.id]
+    if (mapped) {
+        ids.add(mapped)
+    }
+    return [...ids]
+}
 
 export function getAllTimeEntries(
     currentOrganizationId: string | null,
@@ -207,6 +221,16 @@ export function useTimeEntriesDeleteMutation() {
                 },
             })
         },
+        onSuccess: async (_, timeEntries) => {
+            const all = new Set<string>()
+            for (const te of timeEntries) {
+                for (const id of timeEntryIdsForLocalActivityCleanup(te)) {
+                    all.add(id)
+                }
+            }
+            await deleteLocalActivityForTimeEntryIds([...all])
+            queryClient.invalidateQueries({ queryKey: ['windowActivityStats'] })
+        },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['timeEntries', currentOrganizationId] })
         },
@@ -314,15 +338,17 @@ export function useTimeEntryDeleteMutation() {
             if (currentOrganizationId.value === null) {
                 throw new Error('No current organization id - create time entry')
             }
-            if (offlineUuidStore[timeEntry.id]) {
-                timeEntry.id = offlineUuidStore[timeEntry.id]
-            }
+            const timeEntryId = offlineUuidStore[timeEntry.id] ?? timeEntry.id
             return apiClient.value.deleteTimeEntry(undefined, {
                 params: {
                     organization: currentOrganizationId.value,
-                    timeEntry: timeEntry.id,
+                    timeEntry: timeEntryId,
                 },
             })
+        },
+        onSuccess: async (_, timeEntry) => {
+            await deleteLocalActivityForTimeEntryIds(timeEntryIdsForLocalActivityCleanup(timeEntry))
+            queryClient.invalidateQueries({ queryKey: ['windowActivityStats'] })
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['timeEntries', currentOrganizationId] })

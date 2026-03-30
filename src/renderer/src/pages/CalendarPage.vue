@@ -21,6 +21,7 @@ import type {
 } from '@solidtime/api'
 import type { ActivityPeriod } from '@solidtime/ui'
 import { useAppIcons } from '../utils/appIcons.ts'
+import { deleteLocalActivityForTimeEntryIds } from '../utils/localActivityCleanup.ts'
 
 const { currentOrganizationId, currentMembership } = useMyMemberships()
 const currentOrganizationLoaded = computed(() => !!currentOrganizationId.value)
@@ -176,7 +177,9 @@ async function deleteTimeEntry(timeEntryId: string) {
             timeEntry: timeEntryId,
         },
     })
+    await deleteLocalActivityForTimeEntryIds([timeEntryId])
     queryClient.invalidateQueries({ queryKey: ['timeEntry', 'calendar'] })
+    queryClient.invalidateQueries({ queryKey: ['windowActivityStats'] })
 }
 
 const projectCreateMutation = useProjectCreateMutation()

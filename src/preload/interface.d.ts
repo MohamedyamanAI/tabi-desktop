@@ -99,6 +99,9 @@ export interface IElectronAPI {
         ids: number[],
         timeEntryIdForAssign?: string | null
     ) => Promise<{ success: boolean; error?: string }>
+    deleteLocalActivityForTimeEntries: (
+        timeEntryIds: string[]
+    ) => Promise<{ success: boolean; error?: string }>
     screenshotTimeEntryChanged: (timeEntryId: string | null) => void
     updateOrgScreenshotSettings: (
         settings: {

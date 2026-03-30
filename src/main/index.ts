@@ -30,6 +30,7 @@ import { registerWindowActivitiesHandlers } from './windowActivities'
 import { registerOrgActivitySettingsIPC } from './orgActivitySettings'
 import { startInputTracking, stopInputTracking } from './inputTracker'
 import { registerActivitySamplesHandlers } from './activitySamplesIpc'
+import { registerLocalActivityCleanupHandlers } from './localActivityCleanup'
 import { registerAppIconHandlers } from './appIcons'
 import * as Sentry from '@sentry/electron/main'
 import path from 'node:path'
@@ -177,6 +178,7 @@ app.whenReady().then(async () => {
     registerSettingsListeners()
     registerWindowActivitiesHandlers()
     registerActivitySamplesHandlers()
+    registerLocalActivityCleanupHandlers()
     registerAppIconHandlers()
 
     registerOrgActivitySettingsIPC(async (enabled) => {
