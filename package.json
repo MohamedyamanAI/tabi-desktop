@@ -1,6 +1,6 @@
 {
     "name": "Tabi",
-    "version": "0.1.16",
+    "version": "0.1.18",
     "description": "Desktop App for Tabi - time tracking by tabitrack.com",
     "main": "./out/main/index.js",
     "author": {

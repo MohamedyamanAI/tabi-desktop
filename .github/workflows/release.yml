@@ -8,7 +8,8 @@ name: Build/release Electron app
 #   → Web app download button always points to:
 #       https://pub-xxx.r2.dev/releases/latest/tabi-Setup.exe          (Windows x64)
 #       https://pub-xxx.r2.dev/releases/latest/tabi-Setup-arm64.exe    (Windows ARM64)
-#       https://pub-xxx.r2.dev/releases/latest/tabi-universal.dmg      (macOS universal)
+#       https://pub-xxx.r2.dev/releases/latest/tabi-x64.dmg            (macOS x64)
+#       https://pub-xxx.r2.dev/releases/latest/tabi-arm64.dmg          (macOS ARM64)
 #       https://pub-xxx.r2.dev/releases/latest/tabi.AppImage           (Linux x64)
 #       https://pub-xxx.r2.dev/releases/latest/tabi-arm64.AppImage     (Linux ARM64)
 #
@@ -36,7 +37,10 @@ jobs:
                 include:
                     - os: macos-latest
                       platform: mac
-                      arch: universal
+                      arch: x64
+                    - os: macos-latest
+                      platform: mac
+                      arch: arm64
                     - os: ubuntu-latest
                       platform: linux
                       arch: x64
@@ -93,13 +97,13 @@ jobs:
 
             - name: Run Electron Builder (Windows)
               if: matrix.platform == 'windows'
-              run: npx electron-builder --windows --${{ matrix.arch }} --publish always
+              run: npx electron-builder --windows --${{ matrix.arch }} --config electron-builder.yml --publish always
               env:
                   GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
             - name: Run Electron Builder (Linux)
               if: matrix.platform == 'linux'
-              run: npx electron-builder --linux --${{ matrix.arch }} --publish always
+              run: npx electron-builder --linux --${{ matrix.arch }} --config electron-builder.yml --publish always
               env:
                   GH_TOKEN: ${{ secrets.GH_TOKEN }}
                   USE_SYSTEM_FPM: ${{ matrix.arch == 'arm64' && 'true' || 'false' }}
@@ -123,7 +127,7 @@ jobs:
               if: matrix.platform == 'mac'
               run: |
                   echo "$API_KEY" | base64 --decode > apple.p8
-                  npx electron-builder --mac --universal --publish always
+                  npx electron-builder --mac --${{ matrix.arch }} --config electron-builder.yml --publish always
               env:
                   GH_TOKEN: ${{ secrets.GH_TOKEN }}
                   CSC_LINK: ${{ secrets.MAC_CERTS }}
@@ -220,12 +224,21 @@ jobs:
               if: matrix.platform == 'mac' && env.R2_BUCKET_NAME != ''
               run: |
                   R2_ENDPOINT="https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+                  if [ "${{ matrix.arch }}" = "arm64" ]; then
+                    STABLE_DMG="tabi-arm64.dmg"
+                    STABLE_ZIP="tabi-arm64-mac.zip"
+                    META_DIR="mac-arm64"
+                  else
+                    STABLE_DMG="tabi-x64.dmg"
+                    STABLE_ZIP="tabi-x64-mac.zip"
+                    META_DIR="mac-x64"
+                  fi
 
                   # Upload .dmg installer
                   for f in dist/*.dmg; do
                     [ -f "$f" ] || continue
-                    echo "Uploading $f → releases/latest/tabi-universal.dmg"
-                    aws s3 cp "$f" s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/tabi-universal.dmg \
+                    echo "Uploading $f → releases/latest/$STABLE_DMG"
+                    aws s3 cp "$f" s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/$STABLE_DMG \
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
                   done
@@ -234,8 +247,8 @@ jobs:
                   for f in dist/*.zip; do
                     [ -f "$f" ] || continue
                     [[ "$f" == *.blockmap ]] && continue
-                    echo "Uploading $f → releases/latest/tabi-universal-mac.zip"
-                    aws s3 cp "$f" s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/tabi-universal-mac.zip \
+                    echo "Uploading $f → releases/latest/$STABLE_ZIP"
+                    aws s3 cp "$f" s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/$STABLE_ZIP \
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
                   done
@@ -244,11 +257,11 @@ jobs:
                   # version field is preserved — only url/path fields are changed
                   if [ -f dist/latest-mac.yml ]; then
                     VERSION=$(node -p "require('./package.json').version")
-                    sed -i '' "s/Tabi-${VERSION}-universal-mac\.zip/tabi-universal-mac.zip/g" dist/latest-mac.yml
-                    sed -i '' "s/Tabi-${VERSION}-universal\.dmg/tabi-universal.dmg/g" dist/latest-mac.yml
+                    sed -i '' "s/Tabi-${VERSION}-${{ matrix.arch }}-mac\.zip/${STABLE_ZIP}/g" dist/latest-mac.yml
+                    sed -i '' "s/Tabi-${VERSION}-${{ matrix.arch }}\.dmg/${STABLE_DMG}/g" dist/latest-mac.yml
                     echo "--- latest-mac.yml after rewrite ---"
                     cat dist/latest-mac.yml
-                    aws s3 cp dist/latest-mac.yml s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/latest-mac.yml \
+                    aws s3 cp dist/latest-mac.yml s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/$META_DIR/latest-mac.yml \
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
                   fi
