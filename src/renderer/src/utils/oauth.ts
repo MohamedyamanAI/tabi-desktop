@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { useStorage } from '@vueuse/core'
 import { showMainWindow } from './window'
-import { currentMembershipId } from './myMemberships'
+import { currentMembershipId } from './currentMembershipStorage'
 import { type QueryClient } from '@tanstack/vue-query'
 import { emptyTimeEntry } from './timeEntries'
 
@@ -151,12 +151,14 @@ export async function initializeAuth(queryClient: QueryClient) {
                     refresh_token: string
                 }
                 const responseData = (await response.json()) as OAuthResponse
+                // Persist tokens before clearing the query cache so any refetches use Authorization.
+                accessToken.value = responseData.access_token
+                refreshToken.value = responseData.refresh_token
                 currentMembershipId.value = null
                 queryClient.clear()
                 useStorage('currentTimeEntry', { ...emptyTimeEntry }).value = null
                 useStorage('lastTimeEntry', { ...emptyTimeEntry }).value = null
-                accessToken.value = responseData.access_token
-                refreshToken.value = responseData.refresh_token
+                void queryClient.invalidateQueries({ queryKey: ['myMemberships'] })
                 showMainWindow()
             }
         }

@@ -2,18 +2,20 @@ import { apiClient } from './api.ts'
 import { useQuery } from '@tanstack/vue-query'
 import { computed, watch } from 'vue'
 import type { MyMembership, MyMemberships } from '@solidtime/api'
-import { useStorage } from '@vueuse/core'
+import { currentMembershipId } from './currentMembershipStorage'
+import { isLoggedIn } from './oauth'
+
+export { currentMembershipId }
 
 export function getMyMemberships() {
     return apiClient.value.getMyMemberships({})
 }
 
-export const currentMembershipId = useStorage<string | null>('currentMembershipId', null)
-
 export function useMyMemberships() {
     const query = useQuery({
         queryKey: ['myMemberships'],
         queryFn: getMyMemberships,
+        enabled: computed(() => isLoggedIn.value),
     })
     const memberships = computed<MyMemberships>(() => {
         return query.data.value?.data ?? []
@@ -32,16 +34,23 @@ export function useMyMemberships() {
         return null
     })
 
-    watch(memberships, () => {
-        if (currentMembershipId.value === null) {
-            currentMembershipId.value = memberships.value?.[0]?.id
-        } else if (
-            !memberships.value.some(
-                (membership: MyMembership) => membership.id === currentMembershipId.value
-            )
-        ) {
-            currentMembershipId.value = memberships.value?.[0]?.id
-        }
-    })
+    watch(
+        memberships,
+        () => {
+            const firstId = memberships.value?.[0]?.id
+            if (currentMembershipId.value === null) {
+                if (firstId != null) {
+                    currentMembershipId.value = firstId
+                }
+            } else if (
+                !memberships.value.some(
+                    (membership: MyMembership) => membership.id === currentMembershipId.value
+                )
+            ) {
+                currentMembershipId.value = firstId ?? null
+            }
+        },
+        { immediate: true }
+    )
     return { query, memberships, currentOrganizationId, currentMembership }
 }
