@@ -242,6 +242,10 @@ jobs:
                     aws s3 cp "$f" s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/$STABLE_DMG \
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
+                    echo "Uploading $f → releases/latest/$META_DIR/$STABLE_DMG"
+                    aws s3 cp "$f" s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/$META_DIR/$STABLE_DMG \
+                      --endpoint-url $R2_ENDPOINT \
+                      --no-progress
                   done
 
                   # Upload .zip installer
@@ -250,6 +254,10 @@ jobs:
                     [[ "$f" == *.blockmap ]] && continue
                     echo "Uploading $f → releases/latest/$STABLE_ZIP"
                     aws s3 cp "$f" s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/$STABLE_ZIP \
+                      --endpoint-url $R2_ENDPOINT \
+                      --no-progress
+                    echo "Uploading $f → releases/latest/$META_DIR/$STABLE_ZIP"
+                    aws s3 cp "$f" s3://${{ secrets.R2_BUCKET_NAME }}/releases/latest/$META_DIR/$STABLE_ZIP \
                       --endpoint-url $R2_ENDPOINT \
                       --no-progress
                   done
