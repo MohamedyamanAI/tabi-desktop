@@ -68,7 +68,8 @@ jobs:
                     libxt-dev \
                     libxrandr-dev \
                     libxinerama-dev \
-                    libxi-dev
+                    libxi-dev \
+                    libopenjp2-tools
 
             - name: Install system FPM (Linux ARM64)
               if: matrix.platform == 'linux' && matrix.arch == 'arm64'

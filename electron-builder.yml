@@ -52,7 +52,7 @@ dmg:
     artifactName: ${productName}.dmg
 linux:
     artifactName: ${name}-${arch}.${ext}
-    icon: build/icon.icns
+    icon: build/icon.png
     executableName: tabi
     target:
         - deb
