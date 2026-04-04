@@ -192,9 +192,13 @@ watch(
                 appActivitySyncEnabled,
             })
 
-            const wasEnabled =
-                prevOrg !== undefined ? Boolean(prevOrg.activity_tracking_enabled) : undefined
-            if (wasEnabled === false && activityTrackingEnabled) {
+            // Only prompt when activity was explicitly off before (missing field ≠ "was off").
+            // Otherwise org refetches / partial payloads look like false→true and re-nag Accessibility.
+            const activityWasExplicitlyOff =
+                prevOrg !== undefined &&
+                Object.prototype.hasOwnProperty.call(prevOrg, 'activity_tracking_enabled') &&
+                prevOrg.activity_tracking_enabled === false
+            if (activityWasExplicitlyOff && activityTrackingEnabled) {
                 const isMac =
                     typeof navigator !== 'undefined' &&
                     navigator.platform.toLowerCase().includes('mac')

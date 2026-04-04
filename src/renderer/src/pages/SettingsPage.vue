@@ -114,8 +114,13 @@ watch(
     { immediate: true }
 )
 
+function onAppWindowFocus() {
+    void refreshLocalPermissionState()
+}
+
 onUnmounted(() => {
     stopLiveBucketPoll()
+    window.removeEventListener('focus', onAppWindowFocus)
 })
 
 const isMac = computed(
@@ -235,6 +240,9 @@ watch(
 )
 
 onMounted(async () => {
+    window.addEventListener('focus', onAppWindowFocus)
+    void refreshLocalPermissionState()
+
     // Fetch pending screenshot count
     try {
         pendingScreenshots.value = await window.electronAPI.getScreenshotPendingCount()

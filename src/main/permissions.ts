@@ -1,4 +1,4 @@
-import { systemPreferences } from 'electron'
+import { desktopCapturer, systemPreferences } from 'electron'
 
 /**
  * Checks if the app has screen recording permission on macOS
@@ -23,6 +23,29 @@ export function getScreenRecordingPermissionStatus():
 export function hasScreenRecordingPermission(): boolean {
     const status = getScreenRecordingPermissionStatus()
     return status === 'granted'
+}
+
+/**
+ * Whether the app can actually use desktopCapturer for screen sources.
+ * On macOS, getMediaAccessStatus('screen') sometimes stays non-granted while capture works;
+ * a lightweight getSources probe matches real screenshot / window-title behavior.
+ */
+export async function hasEffectiveScreenRecordingAccess(): Promise<boolean> {
+    if (process.platform !== 'darwin') {
+        return true
+    }
+    if (systemPreferences.getMediaAccessStatus('screen') === 'granted') {
+        return true
+    }
+    try {
+        const sources = await desktopCapturer.getSources({
+            types: ['screen'],
+            thumbnailSize: { width: 1, height: 1 },
+        })
+        return sources.length > 0
+    } catch {
+        return false
+    }
 }
 
 /**
