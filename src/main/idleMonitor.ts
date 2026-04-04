@@ -1,4 +1,4 @@
-import { powerMonitor, ipcMain, dialog } from 'electron'
+import { powerMonitor, ipcMain, dialog, systemPreferences } from 'electron'
 import { getMainWindow } from './mainWindow'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
@@ -37,10 +37,14 @@ let activeStartTime: Dayjs | null = null
 let idleThreshold = 300
 let idleDetectionEnabled = true
 let isTimerRunning = false
-let waitingForUserResponse = false // Track if we're waiting for idle dialog response
+let waitingForUserResponse = false
 
 export async function initializeIdleMonitor() {
-    // Start with defaults; org settings arrive via IPC once the renderer loads
+    // Request accessibility permission on macOS (required for getSystemIdleTime to work)
+    if (process.platform === 'darwin') {
+        systemPreferences.isTrustedAccessibilityClient(true)
+    }
+
     console.log('Idle monitor initialized with defaults:', {
         idleThreshold,
         idleDetectionEnabled,
@@ -48,19 +52,16 @@ export async function initializeIdleMonitor() {
 
     registerIdleMonitorListeners()
 
-    // Start monitoring with defaults (enabled, 5 min)
     if (idleDetectionEnabled) {
         startIdleMonitoring()
     }
 }
 
 function registerIdleMonitorListeners() {
-    // Listen for org idle settings from renderer
     ipcMain.on(
         'updateOrgIdleSettings',
         (_event, settings: { enabled: boolean; thresholdMinutes: number } | null) => {
             if (settings === null) {
-                // No org / logged out — reset to defaults
                 idleDetectionEnabled = true
                 idleThreshold = 300
                 console.log('Idle detection reset to defaults (no org settings)')
@@ -100,7 +101,6 @@ function registerIdleMonitorListeners() {
         }
     )
 
-    // Listen for timer state changes
     ipcMain.on('timerStateChanged', (_event, running: boolean) => {
         isTimerRunning = running
         console.log('Timer state changed:', running)
@@ -110,7 +110,7 @@ function registerIdleMonitorListeners() {
 function startIdleMonitoring() {
     if (idleCheckInterval) {
         console.log('Idle monitoring already running, skipping start')
-        return // Already monitoring
+        return
     }
 
     console.log('Starting idle monitoring')
@@ -118,10 +118,8 @@ function startIdleMonitoring() {
     isIdle = false
     idleStartTime = null
 
-    // Check current idle state immediately to set correct initial state
     const currentIdleTime = powerMonitor.getSystemIdleTime()
     if (currentIdleTime >= idleThreshold) {
-        // System is already idle when monitoring starts
         isIdle = true
         const now = dayjs()
         idleStartTime = now.subtract(currentIdleTime, 'seconds')
@@ -130,27 +128,21 @@ function startIdleMonitoring() {
             `System already idle when monitoring started. Idle since: ${idleStartTime.toISOString()}`
         )
     } else {
-        // System is active, start tracking from now
         activeStartTime = dayjs()
     }
 
-    // Check idle state every second
     idleCheckInterval = setInterval(() => {
         const idleTime = powerMonitor.getSystemIdleTime()
 
         if (idleTime >= idleThreshold) {
-            // System has been idle for longer than threshold
             if (!isIdle) {
-                // Transition to idle state
                 isIdle = true
                 const now = dayjs()
                 idleStartTime = now.subtract(idleTime, 'seconds')
 
                 console.log(`System became idle at ${idleStartTime.toISOString()}`)
 
-                // Save the active period that just ended
                 if (activeStartTime) {
-                    // Ensure the end time is not before the start time due to timing precision
                     const endTime = idleStartTime.isBefore(activeStartTime)
                         ? activeStartTime
                         : idleStartTime
@@ -164,9 +156,7 @@ function startIdleMonitoring() {
                 }
             }
         } else {
-            // System is active
             if (isIdle && idleStartTime) {
-                // Transition from idle to active
                 const idleEnd = dayjs()
                 const idleDurationSeconds = idleEnd.diff(idleStartTime, 'seconds')
 
@@ -174,22 +164,17 @@ function startIdleMonitoring() {
                     `System became active at ${idleEnd.toISOString()}, idle duration: ${idleDurationSeconds}s`
                 )
 
-                // Capture the idle period info before resetting state
                 const capturedIdleStart = idleStartTime.utc().format()
                 const capturedIdleEnd = idleEnd.utc().format()
                 const capturedDuration = idleDurationSeconds
 
-                // Reset idle state and resume activity tracking immediately
                 isIdle = false
                 idleStartTime = null
                 activeStartTime = idleEnd
 
-                // Only show dialog if timer is running and we're not already waiting for a response
-                // This prevents multiple dialogs from appearing
                 if (isTimerRunning && !waitingForUserResponse) {
                     waitingForUserResponse = true
 
-                    // Show dialog asynchronously without blocking the interval
                     showIdleDialog(capturedIdleStart, capturedIdleEnd, capturedDuration)
                         .then(() => {
                             waitingForUserResponse = false
@@ -199,7 +184,6 @@ function startIdleMonitoring() {
                             waitingForUserResponse = false
                         })
                 } else if (!isTimerRunning) {
-                    // If timer is not running, just save the idle period automatically
                     saveActivityPeriod(capturedIdleStart, capturedIdleEnd, true)
                 }
             }
@@ -215,14 +199,12 @@ async function saveActivityPeriod(start: string, end: string, isIdlePeriod: bool
             isIdle: isIdlePeriod,
         }
 
-        // Validate the period before insertion
         validateNewActivityPeriod(newPeriod)
 
         await db.insert(activityPeriods).values(newPeriod)
         console.log(`Saved ${isIdlePeriod ? 'idle' : 'active'} period: ${start} to ${end}`)
     } catch (error) {
         console.error('Failed to save activity period:', error)
-        // Log detailed error for debugging
         if (error instanceof Error) {
             console.error('Error details:', error.message)
         }
@@ -239,7 +221,6 @@ async function showIdleDialog(idleStartTime: string, idleEndTime: string, durati
     const startTime = formatTime(idleStartTime)
     const endTime = formatTime(idleEndTime)
 
-    // Focus the main window to ensure dialog appears on top
     if (mainWindow.isMinimized()) {
         mainWindow.restore()
     }
@@ -256,19 +237,14 @@ async function showIdleDialog(idleStartTime: string, idleEndTime: string, durati
         noLink: true,
     })
 
-    // Handle the user's choice
     if (result.response === 0) {
-        // Keep Idle Time - save the idle period
         await saveActivityPeriod(idleStartTime, idleEndTime, true)
     } else if (result.response === 1) {
-        // Discard Idle Time - don't save anything
         console.log('User discarded idle time')
     } else if (result.response === 2) {
-        // Discard & Start New Timer - don't save idle time
         console.log('User discarded idle time and will start new timer')
     }
 
-    // Send the user's choice to renderer
     mainWindow.webContents.send('idleDialogResponse', {
         choice: result.response,
         idleStartTime,
@@ -277,13 +253,11 @@ async function showIdleDialog(idleStartTime: string, idleEndTime: string, durati
 }
 
 async function stopIdleMonitoring() {
-    // Save the current active period if we're stopping while active
     if (activeStartTime && !isIdle) {
         const now = dayjs()
         await saveActivityPeriod(activeStartTime.toISOString(), now.toISOString(), false)
     }
 
-    // Save current idle period if we're stopping while idle
     if (idleStartTime && isIdle) {
         const now = dayjs()
         await saveActivityPeriod(idleStartTime.toISOString(), now.toISOString(), true)
@@ -299,22 +273,16 @@ async function stopIdleMonitoring() {
     waitingForUserResponse = false
 }
 
-/**
- * Gets the current ongoing activity period (not yet saved to database)
- * Returns null if there's no ongoing period or if waiting for user response
- */
 export function getCurrentActivityPeriod(): { start: string; end: string; isIdle: boolean } | null {
     const now = dayjs()
 
     if (isIdle && idleStartTime) {
-        // Currently in an idle period
         return {
             start: idleStartTime.utc().format(),
             end: now.utc().format(),
             isIdle: true,
         }
     } else if (!isIdle && activeStartTime) {
-        // Currently in an active period
         return {
             start: activeStartTime.utc().format(),
             end: now.utc().format(),
