@@ -35,6 +35,7 @@ import { registerAppIconHandlers } from './appIcons'
 import * as Sentry from '@sentry/electron/main'
 import path from 'node:path'
 import { stopIdleMonitoring } from './idleMonitor'
+import { hasScreenRecordingPermission } from './permissions'
 
 // Global error handlers to capture full error details
 process.on('uncaughtException', (error) => {
@@ -230,8 +231,9 @@ app.whenReady().then(async () => {
         return systemPreferences.isTrustedAccessibilityClient(true)
     })
 
-    // Trigger macOS screen recording permission prompt on startup
-    if (process.platform === 'darwin') {
+    // Only touch desktopCapturer when screen recording is not granted — avoids redundant
+    // system prompts / work on every launch once the user has allowed the app.
+    if (process.platform === 'darwin' && !hasScreenRecordingPermission()) {
         try {
             await desktopCapturer.getSources({
                 types: ['screen'],

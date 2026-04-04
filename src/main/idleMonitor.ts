@@ -40,9 +40,13 @@ let isTimerRunning = false
 let waitingForUserResponse = false
 
 export async function initializeIdleMonitor() {
-    // Request accessibility permission on macOS (required for getSystemIdleTime to work)
+    // Accessibility trust is required for getSystemIdleTime on macOS. Only use the prompt
+    // path when not already trusted — isTrustedAccessibilityClient(true) on every launch
+    // can re-surface OS UI even after the user has granted access.
     if (process.platform === 'darwin') {
-        systemPreferences.isTrustedAccessibilityClient(true)
+        if (!systemPreferences.isTrustedAccessibilityClient(false)) {
+            systemPreferences.isTrustedAccessibilityClient(true)
+        }
     }
 
     console.log('Idle monitor initialized with defaults:', {
