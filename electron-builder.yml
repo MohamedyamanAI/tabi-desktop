@@ -38,6 +38,8 @@ nsis:
     uninstallDisplayName: ${productName}
     createDesktopShortcut: always
 mac:
+    hardenedRuntime: true
+    entitlements: build/entitlements.mac.plist
     entitlementsInherit: build/entitlements.mac.plist
     target:
         - dmg
