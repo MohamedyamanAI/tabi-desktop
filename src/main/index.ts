@@ -231,17 +231,32 @@ app.whenReady().then(async () => {
     })
 
     // Trigger macOS screen recording permission prompt on startup
+    // if (process.platform === 'darwin') {
+    //     try {
+    //         await desktopCapturer.getSources({
+    //             types: ['screen'],
+    //             thumbnailSize: { width: 1, height: 1 },
+    //         })
+    //     } catch (error) {
+    //         console.error('Screen recording permission request failed:', error)
+    //     }
+    // }
+
+    
+    // After (only prompts if not already granted):
     if (process.platform === 'darwin') {
-        try {
-            await desktopCapturer.getSources({
-                types: ['screen'],
-                thumbnailSize: { width: 1, height: 1 },
-            })
-        } catch (error) {
-            console.error('Screen recording permission request failed:', error)
+        const status = systemPreferences.getMediaAccessStatus('screen')
+        if (status !== 'granted') {
+            try {
+                await desktopCapturer.getSources({
+                    types: ['screen'],
+                    thumbnailSize: { width: 1, height: 1 },
+                })
+            } catch (error) {
+                console.error('Screen recording permission request failed:', error)
+            }
         }
     }
-
     createWindow()
     await initializeIdleMonitor()
     await initializeActivityTracker()
