@@ -9,3 +9,28 @@
     font-style: normal;
     font-display: swap;
 }
+
+/* Fix modal dropdown interaction issues */
+/* Ensure dropdown and select elements work inside modals */
+[role="dialog"] [role="listbox"],
+[role="dialog"] [role="combobox"],
+[role="dialog"] [role="button"],
+[role="dialog"] select,
+[role="dialog"] button,
+[role="dialog"] input,
+[role="dialog"] textarea {
+    pointer-events: auto;
+}
+
+/* Ensure dropdown menus are clickable */
+[role="listbox"] {
+    pointer-events: auto;
+}
+
+/* Fix for Radix UI Popover and Dropdown inside modals */
+[data-radix-popover-content],
+[data-radix-dropdown-menu-content],
+[data-radix-select-content],
+[data-state="open"] {
+    pointer-events: auto;
+}
